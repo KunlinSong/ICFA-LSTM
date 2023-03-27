@@ -1,0 +1,2 @@
+# 城际特征关联长短期记忆神经网络
+城际特征关联长短期记忆神经网络（ICFA-LSTM, Inter-City Feature Association Long Short-Term Memory）是一个通过在LSTM神经网络前添加一个ICFA层，其对每个输入特征赋予城际关联矩阵，以提高后续的LSTM神经网络预测精度。该神经网络的输入是一个shape为（l，m，n）的矩阵，其中l为时间长度，m为输入城市数目，n为输入特征数目。在每一时间中，shape为（m，n）的输入矩阵被传入神经网络中。在ICFA-LSTM中，该输入矩阵被拆分为n个m维向量，这些向量分别乘1个shape为（m，m）的城际关联矩阵。之后将这n个被赋予了城际关联信息的m维向量再组成一个shape为（m，n）的矩阵，再将该矩阵传入LSTM神经网络中展开计算。
