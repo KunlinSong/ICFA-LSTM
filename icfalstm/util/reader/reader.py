@@ -1,5 +1,6 @@
 import os
-from typing import Union
+import datetime
+from typing import Union, Literal
 from collections.abc import Iterable
 
 
@@ -66,9 +67,9 @@ class Reader:
 
         Returns:
             Union[list[Union[int, float, str]], int, float, str, None]: 
-                If the value is empty returns None. If the value contains 
-                commas, splits it and converts it to a list. Otherwise, 
-                attempts to convert it to a number.
+                If the value is empty returns None. If the value 
+                contains commas, splits it and converts it to a list. 
+                Otherwise, attempts to convert it to a number.
         """
         if not value:
             return None
@@ -160,10 +161,7 @@ class Config(Reader):
                 for the given usage, False otherwise.
         """
         keys = setting.get_usage_keys(usage)
-        for key in keys:
-            if getattr(self, key) != getattr(other, key):
-                return False
-        return True
+        return all(getattr(self, key) == getattr(other, key) for key in keys)
 
     @staticmethod
     def _to_str(
@@ -205,3 +203,8 @@ class Config(Reader):
         with open(os.path.join(dirname, 'config.txt'), 'w') as f:
             f.writelines((
                 f'{key} : {self._to_str(getattr(self, key))}' for key in keys))
+
+    def get_time(self, which: Literal['start', 'end']):
+        return datetime.datetime(year=getattr(self, f'{which}_year'),
+                                 month=getattr(self, f'{which}_month'),
+                                 day=getattr(self, f'{which}_day'))
