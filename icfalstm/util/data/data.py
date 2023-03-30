@@ -1,51 +1,15 @@
 import os
 import numpy as np
 import pandas as pd
-from typing import Union
+from typing import Union, Literal
 import icfalstm.util as util
 
 
-class Data:
-    """A class representing data with input and target values.
-
-    This class is intended to be subclassed and the methods 
-    '_get_input_data' and '_get_target_data' should be implemented.
-    """
-
-    def __init__(self) -> None:
-        """Initializes the data object by retrieving input and 
-        target data.
-        """
-        self.input_data = self._get_input_data()
-        self.target_data = self._get_target_data()
-
-    def _get_input_data(self) -> None:
-        """Retrieves input data.
-
-        This method should be implemented by subclasses.
-
-        Raises:
-            NotImplementedError: If the method is not implemented 
-                by a subclass.
-        """
-        raise NotImplementedError
-
-    def _get_target_data(self) -> None:
-        """Retrieves target data.
-
-        This method should be implemented by subclasses.
-
-        Raises:
-            NotImplementedError: If the method is not implemented 
-                by a subclass.
-        """
-        raise NotImplementedError
-
-
-class CSVData(Data):
+class CSVData:
     """A class for reading and processing data from a CSV file.
 
     Attributes:
+        path (str): The path to the CSV file.
         df (pd.DataFrame): The DataFrame containing the data 
             from the CSV file.
         cities (list): The list of cities to use as row indices.
@@ -65,6 +29,7 @@ class CSVData(Data):
             ValueError: If any of the required instance variables 
                 are None.
         """
+        self.path = path
         self.df = pd.read_csv(path, index_col=0)
         self.cities = config.cities
         self.attributes = config.attributes
@@ -72,7 +37,7 @@ class CSVData(Data):
         self._check_vars()
         super(CSVData, self).__init__()
 
-    def _check_vars(self):
+    def _check_vars(self) -> None:
         """Checks if any of the required instance variables are None.
 
         Raises:
@@ -97,24 +62,36 @@ class CSVData(Data):
         """
         return np.array(self.df.loc[idx, cols])
 
-    def _get_input_data(self) -> np.ndarray:
-        """Gets the input data as a NumPy array.
+    def get_data(self, which: Literal['input', 'target']) -> np.ndarray:
+        """Gets the input or target data as a NumPy array.
 
         Returns:
-            np.ndarray: The input data as a NumPy array.
+            np.ndarray: The input or target data as a NumPy array.
         """
-        return self._get_array(idx=self.cities, cols=self.attributes)
+        if which == 'input':
+            return self._get_array(idx=self.cities, cols=self.attributes)
+        elif which == 'target':
+            return self._get_array(idx=self.cities, cols=self.targets)
+        else:
+            raise ValueError(f'Invalid value for which: {which}')
 
-    def _get_target_data(self) -> np.ndarray:
-        """Gets the target data as a NumPy array.
+    def to_npz(self, dirname: str) -> None:
+        """Saves the input and target data as a NumPy array.
 
-        Returns:
-            np.ndarray: The target data as a NumPy array
+        Args:
+            dirname (str): The directory to save the NumPy array to.
         """
-        return self._get_array(idx=self.cities, cols=self.targets)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
+        base_name = os.path.basename(self.path)
+        no_extension = os.path.splitext(base_name)[0]
+        npz_path = os.path.join(dirname, f'{no_extension}.npz')
+        np.savez(npz_path,
+                 input_data=self.get_data('input'),
+                 target_data=self.get_data('target'))
 
 
-class NPZData(Data):
+class NPZData:
     """A class for reading and processing data from an NPZ file.
 
     Args:
@@ -131,18 +108,15 @@ class NPZData(Data):
         self.npz_file = np.load(path)
         super(NPZData, self).__init__()
 
-    def _get_input_data(self) -> np.ndarray:
-        """Gets the input data as a NumPy array.
+    def get_data(self, which: Literal['input', 'target']) -> np.ndarray:
+        """Gets the input or target data as a NumPy array.
 
         Returns:
-            np.ndarray: The input data as a NumPy array.
+            np.ndarray: The input or target data as a NumPy array.
         """
-        return self.npz_file.get('input_data')
-
-    def _get_target_data(self) -> np.ndarray:
-        """Gets the target data as a NumPy array.
-
-        Returns:
-            np.ndarray: The target data as a NumPy array.
-        """
-        return self.npz_file.get('target_data')
+        if which == 'input':
+            return self.npz_file.get('input_data')
+        elif which == 'target':
+            return self.npz_file.get('target_data')
+        else:
+            raise ValueError(f'Invalid value for which: {which}')

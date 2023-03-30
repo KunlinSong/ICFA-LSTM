@@ -5,6 +5,7 @@ from collections.abc import Iterable
 
 
 class Reader:
+    """A class for reading text files."""
 
     def __init__(self, path) -> None:
         """Initializes the reader class.
@@ -97,6 +98,7 @@ class Reader:
 
 
 class Setting(Reader):
+    """A class for reading setting files."""
 
     def __init__(self, path) -> None:
         """Initializes the Setting class.
@@ -109,12 +111,13 @@ class Setting(Reader):
         """
         super(Setting, self).__init__(path)
 
-    def get_usage_keys(self, usage: str) -> Iterable:
+    def get_usage_keys(self, usage: Literal['data', 'model']) -> Iterable:
         """Gets the usage attribute of the Setting instance and returns 
         an iterable based on its type.
 
         Args:
-            usage (str): The name of the usage attribute to get.
+            usage (Literal['data', 'model']): The name of the usage attribute 
+                to get.
 
         Returns:
             Iterable: An iterable containing the info of the usage 
@@ -132,8 +135,7 @@ class Setting(Reader):
 
 
 class Config(Reader):
-    """Configuration class for reading and saving configuration files
-    """
+    """A class for reading configuration files."""
 
     def __init__(self, path: str) -> None:
         """Initializes the Config class.
@@ -147,14 +149,14 @@ class Config(Reader):
         super(Config, self).__init__(path)
 
     def is_equal_to_in_usage(self, other: 'Config', setting: Setting,
-                             usage: str) -> bool:
+                             usage: Literal['data', 'model']) -> bool:
         """Determines if two configuration instances are equal 
         for a given usage.
 
         Args:
             other (Config): Another configuration instance.
             setting (Setting): A setting instance.
-            usage (str): The name of the usage.
+            usage (Literal['data', 'model']): The name of the usage.
 
         Returns:
             bool: True if the two configuration instances are equal 
@@ -187,14 +189,14 @@ class Config(Reader):
             return str(data_to_convert)
 
     def save_for_usage(self, dirname: str, setting: Setting,
-                       usage: str) -> None:
+                       usage: Literal['data', 'model']) -> None:
         """Saves the configuration for a given usage.
 
         Args:
             dirname (str): The directory in which to save the 
                 configuration file.
             setting (Setting): A setting instance.
-            usage (str): The name of the usage.
+            usage (Literal['data', 'model']): The name of the usage.
         
         Raises:
             FileNotFoundError: If the specified directory does not exist.
@@ -204,7 +206,15 @@ class Config(Reader):
             f.writelines((
                 f'{key} : {self._to_str(getattr(self, key))}' for key in keys))
 
-    def get_time(self, which: Literal['start', 'end']):
+    def get_time(self, which: Literal['start', 'end']) -> datetime.datetime:
+        """Gets the start or end time of the configuration.
+
+        Args:
+            which (Literal['start', 'end']): The type of time to get.
+
+        Returns:
+            datetime.datetime: The start or end time of the configuration.
+        """
         return datetime.datetime(year=getattr(self, f'{which}_year'),
                                  month=getattr(self, f'{which}_month'),
                                  day=getattr(self, f'{which}_day'))
