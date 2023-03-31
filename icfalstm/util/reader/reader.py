@@ -21,20 +21,19 @@ class Reader:
         self._get_attrs(path)
 
     @staticmethod
-    def _split_key_value(line: str) -> tuple[str]:
-        """Splits a line of text into a key-value pair.
+    def _split_key_value(cont: str) -> tuple[str]:
+        """Splits content in a line of text into a key-value pair.
 
         Args:
-            line (str): A line of text containing a key and 
+            cont (str): A content in a line of text containing a key and 
                 value separated by a colon.
 
         Returns:
             tuple[str]: A tuple containing the key-value pair.
         
         Raises:
-            ValueError: If the line does not contain a colon.
+            ValueError: If the cont does not contain a colon.
         """
-        cont = line.strip()
         k, v = cont.split(':', 1)
         return k.strip(), v.strip()
 
@@ -92,9 +91,11 @@ class Reader:
         """
         with open(path, 'r') as f:
             for line in f:
-                k, v = self._split_key_value(line)
-                v = self._process_value(v)
-                setattr(self, k, v)
+                cont = line.strip()
+                if cont and not cont.startswith('#'):
+                    k, v = self._split_key_value(cont)
+                    v = self._process_value(v)
+                    setattr(self, k, v)
 
 
 class Setting(Reader):
@@ -189,7 +190,7 @@ class Config(Reader):
             return str(data_to_convert)
 
     def save_for_usage(self, dirname: str, setting: Setting,
-                       usage: Literal['data', 'model']) -> None:
+                       usage: Literal['data', 'model'], **kwargs) -> None:
         """Saves the configuration for a given usage.
 
         Args:
@@ -205,6 +206,7 @@ class Config(Reader):
         with open(os.path.join(dirname, 'config.txt'), 'w') as f:
             f.writelines((
                 f'{key} : {self._to_str(getattr(self, key))}' for key in keys))
+            f.writelines((f'{key} : {value}' for key, value in kwargs.items()))
 
     def get_time(self, which: Literal['start', 'end']) -> datetime.datetime:
         """Gets the start or end time of the configuration.
@@ -218,3 +220,26 @@ class Config(Reader):
         return datetime.datetime(year=getattr(self, f'{which}_year'),
                                  month=getattr(self, f'{which}_month'),
                                  day=getattr(self, f'{which}_day'))
+
+    def get_proportion(
+            self, which: Literal['training', 'validation',
+                                 'testing']) -> float:
+        """Gets the training, validation, or testing proportion.
+
+        Args:
+            which (Literal['training', 'validation', 'testing']): The 
+                type of proportion to get.
+
+        Returns:
+            float: The training, validation, or testing proportion.
+        """
+        if which == 'training':
+            idx = 0
+        elif which == 'validation':
+            idx = 1
+        elif which == 'testing':
+            idx = 2
+        else:
+            raise ValueError(f'Invalid proportion type: {which}')
+        return self.training_validation_testing[idx] / sum(
+            self.training_validation_testing)

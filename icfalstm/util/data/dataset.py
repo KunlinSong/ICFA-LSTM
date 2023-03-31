@@ -41,7 +41,66 @@ class DataDict:
         self.target_time_delta_list = self._get_target_time_delta_list()
         self._generate_input_and_target_filenames()
         assert self.input_dict.keys() == self.target_dict.keys()
-    
+        for dataset_type in ('training', 'validation', 'testing'):
+            proportion = self.config.get_proportion(dataset_type)
+            for state in ('input', 'target'):
+                data_dict = self._get_data_dict(proportion, state,
+                                                dataset_type)
+                setattr(self, f'{state}_{dataset_type}', data_dict)
+
+    def _get_idx_start_end(
+        self, dataset_type: Literal['training', 'validation',
+                                    'testing']) -> tuple[int]:
+        """Gets the start and end indices of the dataset.
+
+        Args:
+            dataset_type (Literal['training', 'validation', 'testing']): The
+                type of the dataset.
+
+        Raises:
+            ValueError: If the dataset_type is invalid.
+
+        Returns:
+            tuple[int]: The start and end indices of the dataset.
+        """
+        if dataset_type == 'training':
+            idx_start = 0
+            idx_end = self.config.get_proportion('training') * len(self)
+        elif dataset_type == 'validation':
+            idx_start = self.config.get_proportion('training') * len(self)
+            idx_end = (self.config.get_proportion('training') +
+                       self.config.get_proportion('validation')) * len(self)
+        elif dataset_type == 'testing':
+            idx_start = (self.config.get_proportion('training') +
+                         self.config.get_proportion('validation')) * len(self)
+            idx_end = len(self)
+        else:
+            raise ValueError(f'Unknown dataset_type: {dataset_type}')
+        return int(idx_start), int(idx_end)
+
+    def _get_data_dict(
+        self, state: Literal['input', 'target'],
+        dataset_type: Literal['training', 'validation', 'testing']
+    ) -> dict[str, list[str]]:
+        """Gets the dictionary of input or target filenames for the given 
+        dataset_type.
+
+        Args:
+            state (Literal['input', 'target']): The state of the data, either 
+                'input' or 'target'.
+            dataset_type (Literal['training', 'validation', 'testing']): The 
+                type of the dataset, either 'training', 'validation' or 
+                'testing'.
+
+        Returns:
+            dict[str, list[str]]: The dictionary of input or target filenames.
+        """
+        data_dict_for_state = getattr(self, f'{state}_dict')
+        idx_start, idx_end = self._get_idx_start_end(dataset_type)
+        return {
+            key: data_dict_for_state[key] for key in range(idx_start, idx_end)
+        }
+
     def __len__(self):
         """Gets the number of input and target filenames.
 
@@ -97,12 +156,15 @@ class DataDict:
         """Gets the list of target time deltas.
 
         Returns:
-            list[int]: The list of target time deltas.
+            list[list[int]]: The list of target time deltas.
         """
-        return [
-            self.config.input_hours_num + self.config.prediction_interval +
-            time_delta for time_delta in range(self.config.prediction_period)
-        ]
+        target_time_delta_list = []
+        for input_delta in range(self.config.input_hours_num):
+            target_time_delta_list.append([
+                input_delta + self.config.prediction_interval + time_delta
+                for time_delta in range(self.config.prediction_period)
+            ])
+        return target_time_delta_list
 
     def _get_filenames(self, state: datetime.datetime,
                        which: Literal['input', 'target']) -> list[str]:
@@ -119,6 +181,8 @@ class DataDict:
         Returns:
             list[str]: The list of filenames of each time.
         """
+
+        # TODO: 区分input和target完成项目
         times = [(state + datetime.timedelta(hours=time_delta)).strftime(
             DataDict.TIME_FORMAT)
                  for time_delta in getattr(self, f'{which}_time_delta_list')]
@@ -196,7 +260,7 @@ class Dataset(torch.utils.data.Dataset):
         input_data = self.datadict.get_data(idx, 'input')
         target_data = self.datadict.get_data(idx, 'target')
         return input_data, torch.mean(target_data, dim=0)
-    
+
     def __len__(self) -> int:
         """Gets the number of data.
 

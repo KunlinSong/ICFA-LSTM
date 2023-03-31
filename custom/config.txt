@@ -1,0 +1,22 @@
+cities                      :
+attributes                  :
+targets                     :
+
+start_year                  :
+start_month                 :
+start_day                   :
+end_year                    :
+end_month                   :
+end_day                     :
+
+input_hours_num             :
+prediction_interval         
+prediction_period           :
+
+mode                        :
+hidden_units                :
+training_validation_testing : 
+
+max_epoch                   :
+early_stopping_start        :
+early_stopping_patience     :
