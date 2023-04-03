@@ -2,12 +2,17 @@ import os
 import datetime
 from typing import Union, Literal
 from collections.abc import Iterable
+from contextlib import suppress
 
 
 class Reader:
-    """A class for reading text files."""
+    """A class for reading text files.
+    
+    Attributes:
+        path (str): The path of the text.
+    """
 
-    def __init__(self, path) -> None:
+    def __init__(self, path: str) -> None:
         """Initializes the reader class.
 
         Args:
@@ -17,22 +22,18 @@ class Reader:
             FileNotFoundError: If the text does not exist.
         """
         if not os.path.exists(path):
-            raise FileNotFoundError(f'The config file not found: {path}')
+            raise FileNotFoundError(f'The file: {path} does not exist.')
         self._get_attrs(path)
 
     @staticmethod
-    def _split_key_value(cont: str) -> tuple[str]:
-        """Splits content in a line of text into a key-value pair.
+    def _split_key_value(cont: str) -> tuple[str, str]:
+        """Splits a string into a key and value.
 
         Args:
-            cont (str): A content in a line of text containing a key and 
-                value separated by a colon.
-
-        Returns:
-            tuple[str]: A tuple containing the key-value pair.
+            cont (str): The string to split.
         
-        Raises:
-            ValueError: If the cont does not contain a colon.
+        Returns:
+            tuple[str, str]: A tuple containing the key and value.
         """
         k, v = cont.split(':', 1)
         return k.strip(), v.strip()
@@ -43,12 +44,9 @@ class Reader:
 
         Args:
             string (str): The string to convert.
-
+        
         Returns:
-            Union[int, float, str]: If the string can be converted to 
-                an integer, returns an integer. If the string can be 
-                converted to a float, returns a float. Otherwise, 
-                returns the original string.
+            Union[int, float, str]: The converted number or the string.
         """
         for convert_func in (int, float):
             try:
@@ -60,34 +58,32 @@ class Reader:
     def _process_value(
         self, value: str
     ) -> Union[list[Union[int, float, str]], int, float, str, None]:
-        """Processes a value and converts it to an appropriate type.
+        """Processes a value.
 
         Args:
             value (str): The value to process.
-
+        
         Returns:
-            Union[list[Union[int, float, str]], int, float, str, None]: 
-                If the value is empty returns None. If the value 
-                contains commas, splits it and converts it to a list. 
-                Otherwise, attempts to convert it to a number.
+            Union[list[Union[int, float, str]], int, float, str, None]: Return 
+                None if the value is None.If the value is a list type string, 
+                it will be converted to a list. If the info in the value is a 
+                number, it will be converted to an int or float.
         """
         if not value:
             return None
         elif ',' in value:
-            value = value.split(',')
-            value = [
-                self._try_convert_to_number(element.strip())
-                for element in value
+            return [
+                self._try_convert_to_number(info.strip())
+                for info in value.split(',')
             ]
         else:
-            value = self._try_convert_to_number(value)
-        return value
+            return self._try_convert_to_number(value)
 
     def _get_attrs(self, path: str) -> None:
-        """Reads attributes from the text and sets them on the instance.
+        """Gets the attributes of the class from the text file.
 
         Args:
-            path (str): The path of the configuration file.
+            path (str): The path of the text file.
         """
         with open(path, 'r') as f:
             for line in f:
@@ -113,16 +109,14 @@ class Setting(Reader):
         super(Setting, self).__init__(path)
 
     def get_usage_keys(self, usage: Literal['data', 'model']) -> Iterable:
-        """Gets the usage attribute of the Setting instance and returns 
-        an iterable based on its type.
+        """Gets the usage attribute of the Setting instance.
 
         Args:
-            usage (Literal['data', 'model']): The name of the usage attribute 
-                to get.
+            usage (['data', 'model']): The name of the usage attribute to get, 
+             either 'data' or 'model'.
 
         Returns:
-            Iterable: An iterable containing the info of the usage 
-                attribute of the Setting instance.
+            Iterable: The usage attribute of the Setting instance.
         """
         keys = getattr(self, usage)
         if keys is None:
@@ -149,15 +143,16 @@ class Config(Reader):
         """
         super(Config, self).__init__(path)
 
-    def is_equal_to_in_usage(self, other: 'Config', setting: Setting,
-                             usage: Literal['data', 'model']) -> bool:
-        """Determines if two configuration instances are equal 
-        for a given usage.
+    def is_equal_to_for_usage(self, other: 'Config', setting: Setting,
+                              usage: Literal['data', 'model']) -> bool:
+        """Checks if the two configuration instances are equal for a given 
+        usage.
 
         Args:
-            other (Config): Another configuration instance.
+            other (Config): The other configuration instance.
             setting (Setting): A setting instance.
-            usage (Literal['data', 'model']): The name of the usage.
+            usage (['data', 'model']): The name of the usage, either 'data' or 
+                'model'.
 
         Returns:
             bool: True if the two configuration instances are equal 
@@ -197,10 +192,9 @@ class Config(Reader):
             dirname (str): The directory in which to save the 
                 configuration file.
             setting (Setting): A setting instance.
-            usage (Literal['data', 'model']): The name of the usage.
-        
-        Raises:
-            FileNotFoundError: If the specified directory does not exist.
+            usage (['data', 'model']): The name of the usage, 'either 'data' or 
+                'model'.
+            **kwargs: The keyword arguments to save.
         """
         keys = setting.get_usage_keys(usage)
         with open(os.path.join(dirname, 'config.txt'), 'w') as f:
@@ -209,37 +203,38 @@ class Config(Reader):
             f.writelines((f'{key} : {value}' for key, value in kwargs.items()))
 
     def get_time(self, which: Literal['start', 'end']) -> datetime.datetime:
-        """Gets the start or end time of the configuration.
+        """Gets the start or end time of the data by the configuration.
 
         Args:
-            which (Literal['start', 'end']): The type of time to get.
+            which (['start', 'end']): The type of time to get, either 'start' 
+                or 'end'.
 
         Returns:
-            datetime.datetime: The start or end time of the configuration.
+            datetime.datetime: The start or end time of the data.
         """
         return datetime.datetime(year=getattr(self, f'{which}_year'),
                                  month=getattr(self, f'{which}_month'),
                                  day=getattr(self, f'{which}_day'))
 
-    def get_proportion(
-            self, which: Literal['training', 'validation',
-                                 'testing']) -> float:
-        """Gets the training, validation, or testing proportion.
+    def get_proportion(self, which: Literal['train', 'validation',
+                                            'test']) -> float:
+        """Gets the train, validation, or test proportion.
 
         Args:
-            which (Literal['training', 'validation', 'testing']): The 
-                type of proportion to get.
+            which (['train', 'validation', 'test']): The 
+                type of proportion to get, either 'train', 'validation', or 
+                'test'.
 
         Returns:
-            float: The training, validation, or testing proportion.
+            float: The train, validation, or test proportion.
         """
-        if which == 'training':
+        if which == 'train':
             idx = 0
         elif which == 'validation':
             idx = 1
-        elif which == 'testing':
+        elif which == 'test':
             idx = 2
         else:
             raise ValueError(f'Invalid proportion type: {which}')
-        return self.training_validation_testing[idx] / sum(
-            self.training_validation_testing)
+        return self.train_validation_test[idx] / sum(
+            self.train_validation_test)

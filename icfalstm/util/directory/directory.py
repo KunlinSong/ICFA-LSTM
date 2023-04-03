@@ -2,15 +2,15 @@ import os
 import re
 
 
-class Direction:
-    """The class for the direction.
+class Directory:
+    """The class for the directory.
 
     Attributes:
         dirname (str): The directory name.
     """
 
     def __init__(self, dirname: str) -> None:
-        """Initializes a Direction object.
+        """Initializes a Directory object.
 
         Args:
             dirname (str): The directory name.
@@ -32,6 +32,20 @@ class Direction:
         return (os.path.isdir(os.path.join(self.dirname, basename)) and
                 basename.startswith(usage))
 
+    def get_exist_folder_for_usage(self, usage: str) -> list[str]:
+        """Gets the existing folder for the given usage.
+
+        Args:
+            usage (str): The usage of the folder.
+
+        Returns:
+            list[str]: The existing folder for the given usage.
+        """
+        return [
+            filename for filename in os.listdir(self.dirname)
+            if self._is_usage_dir(filename, usage)
+        ]
+
     def get_new_foldername(self, usage: str) -> str:
         """Gets the new folder name for the given usage.
 
@@ -41,10 +55,7 @@ class Direction:
         Returns:
             str: The new folder name for the given usage.
         """
-        exist_folder = [
-            filename for filename in os.listdir(self.dirname)
-            if self._is_usage_dir(filename, usage)
-        ]
+        exist_folder = self.get_exist_folder_for_usage(usage)
         # Use regex to get the number in foldername.
         pattern = r"\d+"
         folder_numbers = {

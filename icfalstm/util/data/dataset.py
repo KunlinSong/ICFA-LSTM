@@ -13,12 +13,21 @@ class DataDict:
 
     Attributes:
         dirname (str): The directory name of the data.
-        config (util.Config): A configuration instance.
-        base_names (list[str]): The list of base names of the data files.
-        input_dict (dict[str, list[str]]): The dictionary of input filenames.
-        target_dict (dict[str, list[str]]): The dictionary of target filenames.
-        input_time_delta_list (list[int]): The list of input time deltas.
-        target_time_delta_list (list[int]): The list of target time deltas.
+        config (util.Config): The configuration instance.
+        file_type (['csv', 'npz']): The extension of the data files.
+        data (Union[util.CSVData, util.NPZData]): The data class.
+        data_kwargs (dict): The keyword arguments for the data class.
+        base_names (list): The list of base names of the data files.
+        input_time_delta_list (list): The list of input time deltas.
+        target_time_delta_list (list): The list of target time deltas.
+        input_dict (dict): The dictionary of all input data.
+        target_dict (dict): The dictionary of all target data.
+        train_input_dict (dict): The dictionary of train input data.
+        validation_input_dict (dict): The dictionary of validation input data.
+        test_input_dict (dict): The dictionary of test input data.
+        train_target_dict (dict): The dictionary of train target data.
+        validation_target_dict (dict): The dictionary of validation target data.
+        test_target_dict (dict): The dictionary of test target data.
     """
     # The format of the time string.
     TIME_FORMAT = '%Y%m%d%H%M'
@@ -30,75 +39,90 @@ class DataDict:
         Args:
             dirname (str): The directory name of the data.
             config (util.Config): The configuration instance.
-            file_type (Literal['csv', 'npz']): The extension of the data files.
+            file_type (['csv', 'npz']): The extension of the data files, either 
+                'csv' or 'npz'.
         """
         self.dirname = dirname
         self.config = config
         self.file_type = file_type
+        if self.file_type == 'csv':
+            self.data = util.CSVData
+            self.data_kwargs = {'config': self.config}
+        elif self.file_type == 'npz':
+            self.data = util.NPZData
+            self.data_kwargs = {}
+        else:
+            raise ValueError(f'Unknown file_type: {file_type}')
+
         self.base_names = self._get_base_names()
-        self.input_dict, self.target_dict = {}, {}
         self.input_time_delta_list = self._get_input_time_delta_list()
         self.target_time_delta_list = self._get_target_time_delta_list()
+        self.input_dict, self.target_dict = {}, {}
         self._generate_input_and_target_filenames()
         assert self.input_dict.keys() == self.target_dict.keys()
-        for dataset_type in ('training', 'validation', 'testing'):
-            proportion = self.config.get_proportion(dataset_type)
-            for state in ('input', 'target'):
-                data_dict = self._get_data_dict(proportion, state,
-                                                dataset_type)
-                setattr(self, f'{state}_{dataset_type}', data_dict)
+        self.length = len(self.input_dict)
+
+        for dataset_state in ('train', 'validation', 'test'):
+            for dataset_type in ('input', 'target'):
+                data_dict = self._get_data_dict(dataset_state, dataset_type)
+                setattr(self, f'{dataset_state}_{dataset_type}_dict',
+                        data_dict)
+            assert (getattr(self,
+                            f'{dataset_state}_input_dict').keys() == getattr(
+                                self, f'{dataset_state}_target_dict').keys())
+            setattr(self, f'{dataset_state}_length',
+                    len(getattr(self, f'{dataset_state}_input_dict')))
 
     def _get_idx_start_end(
-        self, dataset_type: Literal['training', 'validation',
-                                    'testing']) -> tuple[int]:
+            self, dataset_state: Literal['train', 'validation',
+                                         'test']) -> tuple[int, int]:
         """Gets the start and end indices of the dataset.
 
         Args:
-            dataset_type (Literal['training', 'validation', 'testing']): The
-                type of the dataset.
+            dataset_state (['train', 'validation', 'test']): The state of the 
+                dataset, either 'train', 'validation' or 'test'.
 
         Raises:
-            ValueError: If the dataset_type is invalid.
+            ValueError: If the dataset_state is invalid.
 
         Returns:
-            tuple[int]: The start and end indices of the dataset.
+            tuple[int, int]: The start and end indices of the dataset.
         """
-        if dataset_type == 'training':
+        if dataset_state == 'train':
             idx_start = 0
-            idx_end = self.config.get_proportion('training') * len(self)
-        elif dataset_type == 'validation':
-            idx_start = self.config.get_proportion('training') * len(self)
-            idx_end = (self.config.get_proportion('training') +
+            idx_end = self.config.get_proportion('train') * len(self)
+        elif dataset_state == 'validation':
+            idx_start = self.config.get_proportion('train') * len(self)
+            idx_end = (self.config.get_proportion('train') +
                        self.config.get_proportion('validation')) * len(self)
-        elif dataset_type == 'testing':
-            idx_start = (self.config.get_proportion('training') +
+        elif dataset_state == 'test':
+            idx_start = (self.config.get_proportion('train') +
                          self.config.get_proportion('validation')) * len(self)
             idx_end = len(self)
         else:
-            raise ValueError(f'Unknown dataset_type: {dataset_type}')
+            raise ValueError(f'Unknown dataset_state: {dataset_state}')
         return int(idx_start), int(idx_end)
 
     def _get_data_dict(
-        self, state: Literal['input', 'target'],
-        dataset_type: Literal['training', 'validation', 'testing']
-    ) -> dict[str, list[str]]:
+            self, dataset_state: Literal['train', 'validation', 'test'],
+            dataset_type: Literal['input', 'target']) -> dict[str, list[str]]:
         """Gets the dictionary of input or target filenames for the given 
-        dataset_type.
+        dataset_state.
 
         Args:
-            state (Literal['input', 'target']): The state of the data, either 
+            dataset_state (['train', 'validation', 'test']): The state of the 
+                dataset, either 'train', 'validation' or 'test'.
+            dataset_type (['input', 'target']): The type of the data, either 
                 'input' or 'target'.
-            dataset_type (Literal['training', 'validation', 'testing']): The 
-                type of the dataset, either 'training', 'validation' or 
-                'testing'.
 
         Returns:
             dict[str, list[str]]: The dictionary of input or target filenames.
         """
-        data_dict_for_state = getattr(self, f'{state}_dict')
-        idx_start, idx_end = self._get_idx_start_end(dataset_type)
+        data_dict_for_type = getattr(self, f'{dataset_type}_dict')
+        idx_start, idx_end = self._get_idx_start_end(dataset_state)
         return {
-            key: data_dict_for_state[key] for key in range(idx_start, idx_end)
+            idx: data_dict_for_type[key]
+            for idx, key in enumerate(range(idx_start, idx_end))
         }
 
     def __len__(self):
@@ -107,7 +131,7 @@ class DataDict:
         Returns:
             int: The number of input and target filenames.
         """
-        return len(self.input_dict)
+        return self.length
 
     def _has_times_data(self, times: list[str]) -> bool:
         """Checks if the data files exist for the given times.
@@ -158,37 +182,51 @@ class DataDict:
         Returns:
             list[list[int]]: The list of target time deltas.
         """
-        target_time_delta_list = []
-        for input_delta in range(self.config.input_hours_num):
-            target_time_delta_list.append([
-                input_delta + self.config.prediction_interval + time_delta
-                for time_delta in range(self.config.prediction_period)
-            ])
-        return target_time_delta_list
+        return [[(input_delta + self.config.prediction_interval + time_delta)
+                 for time_delta in range(self.config.prediction_period)]
+                for input_delta in range(self.config.input_hours_num)]
 
-    def _get_filenames(self, state: datetime.datetime,
-                       which: Literal['input', 'target']) -> list[str]:
-        """Gets the filenames of input or target.
+    def _get_input_filenames(self, state: datetime.datetime) -> list[str]:
+        """Gets the list of input filenames for the given state.
 
         Args:
-            state (datetime.datetime): The state of the times.
-            which (Literal['input', 'target']): The type of data of the times.
+            state (datetime.datetime): The start of the times.
 
         Raises:
-            FileNotFoundError: If the data files do not exist for the 
-                given times.
+            FileNotFoundError: If the data files do not exist for the given
+                state.
 
         Returns:
-            list[str]: The list of filenames of each time.
+            list[str]: The list of input filenames for the given state.
         """
-
-        # TODO: 区分input和target完成项目
         times = [(state + datetime.timedelta(hours=time_delta)).strftime(
-            DataDict.TIME_FORMAT)
-                 for time_delta in getattr(self, f'{which}_time_delta_list')]
+            DataDict.TIME_FORMAT) for time_delta in self.input_time_delta_list]
         if not self._has_times_data(times):
             raise FileNotFoundError
         return [f'{time}.{self.file_type}' for time in times]
+
+    def _get_target_filenames(self, state: datetime.datetime) -> list[str]:
+        """Gets the list of target filenames for the given state.
+
+        Args:
+            state (datetime.datetime): The start of the times.
+
+        Raises:
+            FileNotFoundError: If the data files do not exist for the given
+                state.
+
+        Returns:
+            list[str]: The list of target filenames for the given state.
+        """
+        times_list = [[
+            (state + datetime.timedelta(hours=time_delta)).strftime(
+                DataDict.TIME_FORMAT) for time_delta in period_time_delta_list
+        ] for period_time_delta_list in self.target_time_delta_list]
+        if not all(self._has_times_data(times) for times in times_list):
+            raise FileNotFoundError
+        return [[f'{time}.{self.file_type}'
+                 for time in times]
+                for times in times_list]
 
     def _generate_input_and_target_filenames(self) -> None:
         """Generates the input and target filenames and add them to input_dict 
@@ -199,36 +237,73 @@ class DataDict:
         idx = 0
         while state <= end:
             with suppress(FileNotFoundError):
-                input_filenames = self._get_filenames(state, 'input')
-                target_filenames = self._get_filenames(state, 'target')
+                input_filenames = self._get_input_filenames(state)
+                target_filenames = self._get_target_filenames(state)
                 self.input_dict[idx] = input_filenames
                 self.target_dict[idx] = target_filenames
                 idx += 1
             state += datetime.timedelta(hours=1)
 
-    def get_data(self, idx: int, which: Literal['input', 'target'],
-                 device: torch.device) -> np.ndarray:
-        """Gets the data of input or target.
+    def _get_filnames_data(
+            self, filenames: list[str],
+            which: Literal['input', 'target']) -> list[np.ndarray]:
+        """Gets the data for the given filenames.
+
+        Args:
+            filenames (list[str]): The list of filenames.
+            which (['input', 'target']): The type of the data, either 'input' 
+                or 'target'.
+
+        Returns:
+            np.ndarray: The data for the given filenames.
+        """
+        return [
+            self.data(os.path.join(self.dirname, filename),
+                      **self.data_kwargs).get_data(which)
+            for filename in filenames
+        ]
+
+    def get_input_data(self, idx: int,
+                       dataset_state: Literal['train', 'validation', 'test'],
+                       device: torch.device) -> torch.Tensor:
+        """Gets the input data.
 
         Args:
             idx (int): The index of the data.
-            which (['input', 'target']): The type of data.
+            dataset_state (['train', 'validation', 'test']): The state of the 
+                dataset, either 'train', 'validation' or 'test'.
+            device (torch.device): The device to load the data to.
 
         Returns:
-            np.ndarray: The data of input or target.
+            torch.Tensor: The input data.
         """
-        filenames = getattr(self, f'{which}_dict')[idx]
-        data = []
-        for filename in filenames:
-            filepath = os.path.join(self.dirname, filename)
-            if self.file_type == 'csv':
-                data.append(
-                    util.CSVData(filepath, self.config).get_data(which))
-            elif self.file_type == 'npz':
-                data.append(util.NPZData(filepath).get_data(which))
-            else:
-                raise ValueError(f'Invalid file type: {self.file_type}')
+        filenames = getattr(self, f'{dataset_state}_input_dict')[idx]
+        data = self._get_filnames_data(filenames, 'input')
         return torch.tensor(data, device=device)
+
+    def get_target_data(self, idx: int,
+                        dataset_state: Literal['train', 'validation', 'test'],
+                        device: torch.device) -> torch.Tensor:
+        """Gets the target data.
+
+        Args:
+            idx (int): The index of the data.
+            dataset_state (['train', 'validation', 'test']): The state of the 
+                dataset, either 'train', 'validation' or 'test'.
+            device (torch.device): The device to load the data to.
+
+        Returns:
+            torch.Tensor: The target data.
+        """
+        filenames_list = getattr(self, f'{dataset_state}_target_dict')[idx]
+        data = [
+            self._get_filnames_data(filenames, 'target')
+            for filenames in filenames_list
+        ]
+        return torch.mean(torch.tensor(data,
+                                       device=device,
+                                       dtype=torch.float64),
+                          dim=1)
 
 
 class Dataset(torch.utils.data.Dataset):
@@ -247,6 +322,16 @@ class Dataset(torch.utils.data.Dataset):
         super(Dataset, self).__init__()
         self.datadict = datadict
         self.device = device
+        self.state = None
+
+    def switch_to(self, state: Literal['train', 'validation', 'test']):
+        """Switches to the given state.
+
+        Args:
+            state (['train', 'validation', 'test']): The state to switch to, 
+                either 'train', 'validation' or 'test'.
+        """
+        self.state = state
 
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
         """Gets the data of input and target.
@@ -257,14 +342,19 @@ class Dataset(torch.utils.data.Dataset):
         Returns:
             tuple[torch.Tensor, torch.Tensor]: The data of input and target.
         """
-        input_data = self.datadict.get_data(idx, 'input')
-        target_data = self.datadict.get_data(idx, 'target')
-        return input_data, torch.mean(target_data, dim=0)
+        basic_kwargs = {
+            'idx': idx,
+            'dataset_state': self.state,
+            'device': self.device
+        }
+        input_data = self.datadict.get_input_data(**basic_kwargs)
+        target_data = self.datadict.get_target_data(**basic_kwargs)
+        return input_data, target_data
 
     def __len__(self) -> int:
-        """Gets the number of data.
+        """Gets the number of data of the dataset state.
 
         Returns:
             int: The number of data.
         """
-        return len(self.datadict)
+        return getattr(self.datadict, f'{self.state}_length')

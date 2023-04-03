@@ -41,21 +41,20 @@ class CSVData:
         """Checks if any of the required instance variables are None.
 
         Raises:
-            ValueError: If any of the required instance variables 
-                are None.
+            ValueError: If any of the required instance variables are None.
         """
         for var_name in ('cities', 'attributes', 'targets'):
             if getattr(self, var_name) is None:
                 raise ValueError(f'The var: {var_name} is None. '
                                  'Please add at least 1 in config file ')
 
-    def _get_array(self, idx: Union[list, tuple, None],
-                   cols: Union[list, tuple, None]) -> np.ndarray:
+    def _get_array(self, idx: Union[list[str], str],
+                   cols: Union[list[str], str]) -> np.ndarray:
         """Gets a NumPy array from the DataFrame.
 
         Args:
-            idx (Union[list, tuple, None]): The row indices to get.
-            cols (Union[list, tuple, None]): The columns to get.
+            idx ([list[str], str]): The row indices to get.
+            cols ([list[str], str]): The columns to get.
 
         Returns:
             np.ndarray: The resulting NumPy array
@@ -64,6 +63,10 @@ class CSVData:
 
     def get_data(self, which: Literal['input', 'target']) -> np.ndarray:
         """Gets the input or target data as a NumPy array.
+
+        Args:
+            which (['input', 'target']): The type of data to get, either 
+                'input' or 'target'.
 
         Returns:
             np.ndarray: The input or target data as a NumPy array.
@@ -95,8 +98,8 @@ class NPZData:
     """A class for reading and processing data from an NPZ file.
 
     Args:
-        npz_file (np.lib.npyio.NpzFile): The NpzFile object 
-            containing the data from the NPZ file.
+        npz_file (np.lib.npyio.NpzFile): The NpzFile object containing the data 
+            from the NPZ file.
     """
 
     def __init__(self, path: str) -> None:
@@ -110,6 +113,10 @@ class NPZData:
 
     def get_data(self, which: Literal['input', 'target']) -> np.ndarray:
         """Gets the input or target data as a NumPy array.
+
+        Args:
+            which (['input', 'target']): The type of data to get, either 
+                'input' or 'target'.
 
         Returns:
             np.ndarray: The input or target data as a NumPy array.
