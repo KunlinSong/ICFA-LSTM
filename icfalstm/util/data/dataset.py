@@ -1,11 +1,14 @@
-import os
 import datetime
-import numpy as np
-import pandas as pd
-import torch
-from typing import Literal
+import os
 from contextlib import suppress
+from typing import Literal
+
+import numpy as np
+import torch
+
 import icfalstm.util as util
+
+__all__ = ['DataDict', 'Dataset']
 
 
 class DataDict:
@@ -28,6 +31,9 @@ class DataDict:
         train_target_dict (dict): The dictionary of train target data.
         validation_target_dict (dict): The dictionary of validation target data.
         test_target_dict (dict): The dictionary of test target data.
+        train_length (int): The length of train data.
+        validation_length (int): The length of validation data.
+        test_length (int): The length of test data.
     """
     # The format of the time string.
     TIME_FORMAT = '%Y%m%d%H%M'
@@ -74,8 +80,8 @@ class DataDict:
                     len(getattr(self, f'{dataset_state}_input_dict')))
 
     def _get_idx_start_end(
-            self, dataset_state: Literal['train', 'validation',
-                                         'test']) -> tuple[int, int]:
+        self, dataset_state: Literal['train', 'validation',
+                                     'test']) -> tuple[int, int]:
         """Gets the start and end indices of the dataset.
 
         Args:
@@ -311,6 +317,8 @@ class Dataset(torch.utils.data.Dataset):
     
     Attributes:
         datadict (DataDict): The DataDict instance.
+        device (torch.device): The device to load the data to.
+        state (['train', 'validation', 'test']): The state of the dataset,
     """
 
     def __init__(self, datadict: DataDict, device: torch.device) -> None:

@@ -1,6 +1,8 @@
 import os
 import re
 
+__all__ = ['Directory']
+
 
 class Directory:
     """The class for the directory.

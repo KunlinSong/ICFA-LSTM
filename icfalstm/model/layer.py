@@ -1,6 +1,13 @@
+from typing import Optional
+
 import torch
 import torch.nn as nn
 from torch.nn.parameter import Parameter
+
+__all__ = [
+    'Dense', 'GRUCell', 'GLSTMCell', 'ICA', 'ICFA', 'InverseMaxMinNorm',
+    'LSTMCell', 'MaxMinNorm'
+]
 
 
 def _get_param(shape: tuple[int], device: torch.device) -> Parameter:
@@ -71,6 +78,49 @@ class Map(nn.Module):
         self.device = device
 
 
+class MaxMinNorm(nn.Module):
+    """A class for the max-min normalization.
+    """
+
+    def __init__(self) -> None:
+        super(MaxMinNorm, self).__init__()
+
+    def forward(self,
+                input: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Forward propagation.
+
+        Args:
+            input (torch.Tensor): The input tensor.
+
+        Returns:
+            tuple[torch.Tensor, torch.Tensor]: The output tensor and the 
+                maximum value. 
+        """
+        max_vals = torch.max(torch.abs(input), dim=(1, 2)).values
+        return input / max_vals, max_vals
+
+
+class InverseMaxMinNorm(nn.Module):
+    """A class for the inverse max-min normalization.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    def forward(self, input: torch.Tensor,
+                max_vals: torch.Tensor) -> torch.Tensor:
+        """Forward propagation.
+
+        Args:
+            input (torch.Tensor): The input tensor.
+            max_vals (torch.Tensor): The maximum value.
+
+        Returns:
+            torch.Tensor: The output tensor.
+        """
+        return input * max_vals
+
+
 class ICFA(Map):
     """A class for the ICFA layer.
 
@@ -81,7 +131,8 @@ class ICFA(Map):
         w_assco_[i] (Parameter): The association matrix for the i-th attribute.
     """
 
-    def __init__(self, input_size: tuple[int, int], device: torch.device) -> None:
+    def __init__(self, input_size: tuple[int, int],
+                 device: torch.device) -> None:
         """Initializes the class.
 
         Args:
@@ -122,7 +173,8 @@ class ICA(Map):
         w_assoc (Parameter): The association matrix.
     """
 
-    def __init__(self, input_size: tuple[int, int], device: torch.device) -> None:
+    def __init__(self, input_size: tuple[int, int],
+                 device: torch.device) -> None:
         """Initializes the class.
 
         Args:
@@ -148,8 +200,8 @@ class ICA(Map):
         return x.reshape(-1, self.num_attrs, self.num_cities).permute(0, 2, 1)
 
 
-class MapLSTMCell(Map):
-    """A class for the MapLSTM cell. It is a LSTM cell sith a map input. The 
+class LSTMCell(Map):
+    """A class for the LSTM cell. It is a LSTM cell sith a map input. The 
     input is a tensor of shape (batch_size, num_cities, num_attrs).
 
     Attributes:
@@ -181,7 +233,7 @@ class MapLSTMCell(Map):
             num_hiddens (int): The number of hidden units.
             device (torch.device): The device to put the parameters on.
         """
-        super(MapLSTMCell, self).__init__(input_size=input_size, device=device)
+        super(LSTMCell, self).__init__(input_size=input_size, device=device)
         self.num_hiddens = num_hiddens
         for gate in ('i', 'f', 'o', 'g'):
             w, u, b = _gate_params(self.num_cities, self.num_attrs,
@@ -191,8 +243,9 @@ class MapLSTMCell(Map):
             setattr(self, f'b_{gate}', b)
 
     def forward(
-            self, input: torch.Tensor,
-            state: tuple[torch.Tensor, torch.Tensor]) -> tuple[torch.Tensor]:
+        self, input: torch.Tensor,
+        state: Optional[tuple[torch.Tensor,
+                              torch.Tensor]]) -> tuple[torch.Tensor]:
         """Forward propagation.
 
         Args:
@@ -203,7 +256,17 @@ class MapLSTMCell(Map):
             tuple[torch.Tensor]: The the new state of the cell.
         """
         x = input.reshape(-1, self.num_attrs)
-        h, c = state
+        if state is None:
+            h = torch.zeros(input.shape[0],
+                            input.shape[1],
+                            self.num_hiddens,
+                            device=self.device)
+            c = torch.zeros(input.shape[0],
+                            input.shape[1],
+                            self.num_hiddens,
+                            device=self.device)
+        else:
+            h, c = state
         h = h.reshape(-1, self.num_hiddens)
         c = c.reshape(-1, self.num_hiddens)
         i = torch.sigmoid(
@@ -220,8 +283,8 @@ class MapLSTMCell(Map):
                 c.reshape(-1, self.num_cities, self.num_hiddens))
 
 
-class MapGLSTMCell(MapLSTMCell):
-    """A class for the MapGLSTM cell.
+class GLSTMCell(LSTMCell):
+    """A class for the GLSTM cell.
 
     Attributes:
         num_cities (int): The number of cities.
@@ -253,15 +316,16 @@ class MapGLSTMCell(MapLSTMCell):
             num_hiddens (int): The number of hidden units.
             device (torch.device): The device to put the parameters on.
         """
-        super(MapGLSTMCell, self).__init__(input_size=input_size,
-                                           num_hiddens=num_hiddens,
-                                           device=device)
+        super(GLSTMCell, self).__init__(input_size=input_size,
+                                        num_hiddens=num_hiddens,
+                                        device=device)
         self.w_adj = _get_param((self.num_cities, self.num_cities),
                                 device=self.device)
 
     def forward(
-            self, input: torch.Tensor,
-            state: tuple[torch.Tensor, torch.Tensor]) -> tuple[torch.Tensor]:
+        self, input: torch.Tensor,
+        state: Optional[tuple[torch.Tensor,
+                              torch.Tensor]]) -> tuple[torch.Tensor]:
         """Forward propagation.
 
         Args:
@@ -272,7 +336,17 @@ class MapGLSTMCell(MapLSTMCell):
             tuple[torch.Tensor]: The the new state of the cell.
         """
         x = input.reshape(-1, self.num_attrs)
-        h, c = state
+        if state is None:
+            h = torch.zeros(input.shape[0],
+                            input.shape[1],
+                            self.num_hiddens,
+                            device=self.device)
+            c = torch.zeros(input.shape[0],
+                            input.shape[1],
+                            self.num_hiddens,
+                            device=self.device)
+        else:
+            h, c = state
 
         h = h.permute(0, 2, 1).reshape(-1, self.num_cities)
         h_adj = torch.matmul(h, self.w_adj)
@@ -299,8 +373,8 @@ class MapGLSTMCell(MapLSTMCell):
                 c.reshape(-1, self.num_cities, self.num_hiddens))
 
 
-class MapGRUCell(Map):
-    """A class for the MapGRU cell. It is a GRU cell with a map as input. The 
+class GRUCell(Map):
+    """A class for the GRU cell. It is a GRU cell with a map as input. The 
     input is a tensor of shape (batch_size, num_cities, num_attrs).
 
     Attributes:
@@ -329,7 +403,7 @@ class MapGRUCell(Map):
             num_hiddens (int): The number of hidden units.
             device (torch.device): The device to put the parameters on.
         """
-        super(MapGRUCell, self).__init__(input_size=input_size, device=device)
+        super(GRUCell, self).__init__(input_size=input_size, device=device)
         self.num_hiddens = num_hiddens
         for gate in ('z', 'r', 'h'):
             w, u, b = _gate_params(self.num_cities, self.num_attrs,
@@ -339,7 +413,7 @@ class MapGRUCell(Map):
             setattr(self, f'b_{gate}', b)
 
     def forward(self, input: torch.Tensor,
-                state: torch.Tensor) -> torch.Tensor:
+                state: Optional[torch.Tensor]) -> torch.Tensor:
         """Forward propagation.
 
         Args:
@@ -350,7 +424,14 @@ class MapGRUCell(Map):
             torch.Tensor: The the new state of the cell.
         """
         x = input.reshape(-1, self.num_attrs)
-        h = state.reshape(-1, self.num_hiddens)
+        if state is None:
+            h = torch.zeros(input.shape[0],
+                            input.shape[1],
+                            self.num_hiddens,
+                            device=self.device)
+        else:
+            h = state
+        h = h.reshape(-1, self.num_hiddens)
         z = torch.sigmoid(
             torch.matmul(x, self.w_z) + torch.matmul(h, self.u_z) + self.b_z)
         r = torch.sigmoid(
@@ -362,8 +443,8 @@ class MapGRUCell(Map):
         return h.reshape(-1, self.num_cities, self.num_hiddens)
 
 
-class MapDense(torch.nn.Module):
-    """A class for the MapDense layer. It is a dense layer with a map as input.
+class Dense(torch.nn.Module):
+    """A class for the Dense layer. It is a dense layer with a map as input.
     The input is a tensor of shape (batch_size, num_cities, input_hiddens).
 
     Attributes:
@@ -385,7 +466,7 @@ class MapDense(torch.nn.Module):
             num_hiddens (int): The number of hidden units.
             device (torch.device): The device to put the parameters on.
         """
-        super(MapDense, self).__init__()
+        super(Dense, self).__init__()
         self.num_cities, self.input_hiddens = input_shape
         self.num_hiddens = num_hiddens
         self.device = device

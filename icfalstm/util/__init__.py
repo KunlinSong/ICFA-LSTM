@@ -1,24 +1,27 @@
-from icfalstm.util.reader import (
-    Config,
-    Setting,
-)
 from icfalstm.util.data import (
     CSVData,
     DataDict,
     Dataset,
     NPZData,
 )
-
-from icfalstm.util.directory import (
-    Directory,
+from icfalstm.util.directory import Directory
+from icfalstm.util.logger import Logger
+from icfalstm.util.reader import (
+    Config,
+    Setting,
+)
+from icfalstm.util.visualization import (
+    TimeRecorder,
+    print_divide_line,
+    print_epoch_loss,
+    print_loss,
 )
 
-from icfalstm.util.logger import (
-    Logger,
-)
-
-__all__ = ['Config', 'CSVData', 'DataDict', 'Dataset', 'Directory', 'Logger', 
-           'NPZData', 'Setting']
+__all__ = [
+    'Config', 'CSVData', 'DataDict', 'Dataset', 'Directory', 'Logger',
+    'NPZData', 'Setting', 'TimeRecorder', 'print_divide_line',
+    'print_epoch_loss', 'print_loss'
+]
 
 # Please keep this list sorted.
 assert __all__ == sorted(__all__)

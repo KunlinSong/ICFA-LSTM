@@ -1,6 +1,4 @@
-from icfalstm.util.logger.logger import (
-    Logger,
-)
+from icfalstm.util.logger.logger import Logger
 
 __all__ = ['Logger']
 

@@ -1,6 +1,4 @@
-from icfalstm.util.directory.directory import (
-    Directory,
-)
+from icfalstm.util.directory.directory import Directory
 
 __all__ = ['Directory']
 
