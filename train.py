@@ -97,15 +97,16 @@ class Training:
                 return model_dirname
         model_foldername = directory.get_new_foldername('model')
         directory.mkdir(model_foldername)
+        model_dirname = os.path.join(self.model_dirname, model_foldername)
         datadict = self.dataset.datadict
         self.config.save_for_usage(
-            model_foldername,
+            model_dirname,
             self.setting,
             'model',
             train_length=datadict.train_length,
             validation_length=datadict.validation_length,
             test_length=datadict.test_length)
-        return os.path.join(self.model_dirname, model_foldername)
+        return model_dirname
 
     def _get_dataset(self) -> util.Dataset:
         """Gets the dataset.
@@ -117,7 +118,7 @@ class Training:
         all_data_foldername = npz_data_directory.get_exist_folder_for_usage(
             'data')
         for data_foldername in all_data_foldername:
-            data_dirname = os.path.join(self.data_dirname, data_foldername)
+            data_dirname = os.path.join(self.npz_data_dirname, data_foldername)
             data_config = util.Config(os.path.join(data_dirname, 'config.txt'))
             if self.config.is_equal_to_for_usage(data_config, 'data'):
                 datadict = util.DataDict(data_dirname,
@@ -156,8 +157,7 @@ class Training:
             self.dataset,
             batch_size=self.config.batch_size,
             num_workers=16,
-            shuffle=(self.dataset.state == 'train'),
-            drop_last=True)
+            shuffle=(self.dataset.state == 'train'))
 
 
 if __name__ == '__main__':

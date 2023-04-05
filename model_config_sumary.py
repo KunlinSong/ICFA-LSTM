@@ -40,11 +40,11 @@ class RelPath:
 if __name__ == '__main__':
     root_dirname = os.getcwd()
     generate_dirname = os.path.join(root_dirname, 'generate')
-    model_dirname = os.path.join(generate_dirname, 'model')
-    model_dir = util.Directory(model_dirname)
+    base_model_dirname = os.path.join(generate_dirname, 'model')
+    model_dir = util.Directory(base_model_dirname)
     model_folder_list = model_dir.get_exist_folder_for_usage('model')
     model_dict = {
-        model_folder: os.path.join(model_dirname, model_folder)
+        model_folder: os.path.join(base_model_dirname, model_folder)
         for model_folder in model_folder_list
     }
 
@@ -56,6 +56,6 @@ if __name__ == '__main__':
         relpath = RelPath(model_config_summary_dirname)
         f.writelines((
             f'{model_folder}: '
-            f'(dir)[{relpath(model_folder)}] '
-            f'(config)[{relpath(model_folder, "config.txt")}]'
-            for model_folder, model_folder in model_dict.items()))
+            f'(dir)[{relpath(model_dirname)}] '
+            f'(config)[{relpath(model_dirname, "config.txt")}]'
+            for model_folder, model_dirname in model_dict.items()))
