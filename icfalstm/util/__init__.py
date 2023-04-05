@@ -18,7 +18,7 @@ from icfalstm.util.visualization import (
 )
 
 __all__ = [
-    'Config', 'CSVData', 'DataDict', 'Dataset', 'Directory', 'Logger',
+    'CSVData', 'Config', 'DataDict', 'Dataset', 'Directory', 'Logger',
     'NPZData', 'Setting', 'TimeRecorder', 'print_divide_line',
     'print_epoch_loss', 'print_loss'
 ]

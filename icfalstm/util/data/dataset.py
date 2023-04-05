@@ -6,7 +6,8 @@ from typing import Literal
 import numpy as np
 import torch
 
-import icfalstm.util as util
+import icfalstm.util.reader as reader
+import icfalstm.util.data.data as data
 
 __all__ = ['DataDict', 'Dataset']
 
@@ -16,9 +17,9 @@ class DataDict:
 
     Attributes:
         dirname (str): The directory name of the data.
-        config (util.Config): The configuration instance.
+        config (reader.Config): The configuration instance.
         file_type (['csv', 'npz']): The extension of the data files.
-        data (Union[util.CSVData, util.NPZData]): The data class.
+        data ([data.CSVData, data.NPZData]): The data class.
         data_kwargs (dict): The keyword arguments for the data class.
         base_names (list): The list of base names of the data files.
         input_time_delta_list (list): The list of input time deltas.
@@ -38,13 +39,13 @@ class DataDict:
     # The format of the time string.
     TIME_FORMAT = '%Y%m%d%H%M'
 
-    def __init__(self, dirname: str, config: util.Config,
+    def __init__(self, dirname: str, config: reader.Config,
                  file_type: Literal['csv', 'npz']) -> None:
         """Initializes a DataDict object.
 
         Args:
             dirname (str): The directory name of the data.
-            config (util.Config): The configuration instance.
+            config (reader.Config): The configuration instance.
             file_type (['csv', 'npz']): The extension of the data files, either 
                 'csv' or 'npz'.
         """
@@ -52,10 +53,10 @@ class DataDict:
         self.config = config
         self.file_type = file_type
         if self.file_type == 'csv':
-            self.data = util.CSVData
+            self.data = data.CSVData
             self.data_kwargs = {'config': self.config}
         elif self.file_type == 'npz':
-            self.data = util.NPZData
+            self.data = data.NPZData
             self.data_kwargs = {}
         else:
             raise ValueError(f'Unknown file_type: {file_type}')

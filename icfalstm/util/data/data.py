@@ -4,7 +4,7 @@ from typing import Union, Literal
 import numpy as np
 import pandas as pd
 
-import icfalstm.util as util
+import icfalstm.util.reader as reader
 
 __all__ = ['CSVData', 'NPZData']
 
@@ -22,12 +22,12 @@ class CSVData:
         targets (list): The list of targets to use as output columns.
     """
 
-    def __init__(self, path: str, config: util.Config) -> None:
+    def __init__(self, path: str, config: reader.Config) -> None:
         """Initializes a CSVData object.
 
         Args:
             path (str): The path to the CSV file.
-            config (util.Config): The configuration object.
+            config (reader.Config): The configuration object.
         
         Raises:
             ValueError: If any of the required instance variables 

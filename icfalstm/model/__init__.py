@@ -11,7 +11,7 @@ from icfalstm.model.layer import (
 from icfalstm.model.model import RNNBase
 
 __all__ = [
-    'Dense', 'GRUCell', 'GLSTMCell', 'ICA', 'ICFA', 'InverseMaxMinNorm',
+    'Dense', 'GLSTMCell', 'GRUCell', 'ICA', 'ICFA', 'InverseMaxMinNorm',
     'LSTMCell', 'MaxMinNorm', 'RNNBase'
 ]
 

@@ -5,7 +5,7 @@ import pandas as pd
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
-import icfalstm.util as util
+import icfalstm.util.reader as reader
 
 __all__ = ['Logger']
 
@@ -14,7 +14,7 @@ class Logger:
     """A class for logging the train process.
 
     Attributes:
-        config (util.Config): The configuration object.
+        config (reader.Config): The configuration object.
         config_path (str): The path to the config file.
         latest_model (str): The path to the latest model state dict.
         best_model (str): The path to the best model state dict.
@@ -31,7 +31,7 @@ class Logger:
         start_epoch (int): The start epoch.
     """
 
-    def __init__(self, dirname: str, config: util.Config) -> None:
+    def __init__(self, dirname: str, config: reader.Config) -> None:
         """Initializes a Logger object.
 
         Args:
