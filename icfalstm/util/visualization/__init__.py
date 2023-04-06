@@ -6,7 +6,7 @@ from icfalstm.util.visualization.visualization import (
 )
 
 __all__ = [
-    'TimeRecorder', 'print_divide_line', 'print_batch_loss', 'print_epoch_loss'
+    'TimeRecorder', 'print_batch_loss', 'print_divide_line', 'print_epoch_loss'
 ]
 
 #  Please keep this list sorted.
