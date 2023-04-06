@@ -22,7 +22,9 @@ if __name__ == '__main__':
     npz_dir.mkdir(data_to_foldername)
     data_to_dirname = os.path.join(npz_dirname, data_to_foldername)
     csv_data_list = glob(os.path.join(csv_dirname, '*.csv'))
-    for csv_data in csv_data_list:
+    for idx, csv_data in enumerate(csv_data_list, start=1):
         data = util.CSVData(csv_data, config)
         data.to_npz(data_to_dirname)
+        print(f'\rFinished: {idx / len(csv_data_list) * 100:.2f}% '
+              f'{idx} / {len(csv_data_list)}', end='')
     config.save_for_usage(data_to_dirname, setting, 'data')

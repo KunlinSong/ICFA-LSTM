@@ -170,7 +170,7 @@ if __name__ == '__main__':
             break
 
         util.print_divide_line()
-        print(f'Epoch: {epoch}')
+        print(f'Epoch: {epoch} / {training.config.max_epoch}')
 
         print('Train')
         training.time_recorder.get_time('start')
@@ -178,7 +178,9 @@ if __name__ == '__main__':
         training.dataset.switch_to('train')
         train_epoch_loss = []
         train_epoch_last_prediction_loss = []
-        for input_data, target_data in training.dataloader:
+        for batch_idx, (input_data,
+                        target_data) in enumerate(training.dataloader,
+                                                  start=1):
             training.optimizer.zero_grad()
             output_data = training.model(input_data)
             loss = training.loss(output_data, target_data)
@@ -190,7 +192,8 @@ if __name__ == '__main__':
                 target_data.permute(1, 0, 2, 3)[-1])
             train_epoch_last_prediction_loss.append(
                 last_prediction_loss.item())
-            util.print_loss(last_prediction_loss.item())
+            util.print_batch_loss(last_prediction_loss.item(), batch_idx,
+                                  len(training.dataloader))
         train_epoch_loss = mean_loss(train_epoch_loss)
         train_epoch_last_prediction_loss = mean_loss(
             train_epoch_last_prediction_loss)
@@ -205,7 +208,9 @@ if __name__ == '__main__':
         training.dataset.switch_to('validation')
         validation_epoch_loss = []
         validation_epoch_last_prediction_loss = []
-        for input_data, target_data in training.dataloader:
+        for batch_idx, (input_data,
+                        target_data) in enumerate(training.dataloader,
+                                                  start=1):
             output_data = training.model(input_data)
             loss = training.loss(output_data, target_data)
             validation_epoch_loss.append(loss.item())
@@ -214,7 +219,8 @@ if __name__ == '__main__':
                 target_data.permute(1, 0, 2, 3)[-1])
             validation_epoch_last_prediction_loss.append(
                 last_prediction_loss.item())
-            util.print_loss(last_prediction_loss.item())
+            util.print_batch_loss(last_prediction_loss.item(), batch_idx,
+                                  len(training.dataloader))
         validation_epoch_loss = mean_loss(validation_epoch_loss)
         validation_epoch_last_prediction_loss = mean_loss(
             validation_epoch_last_prediction_loss)

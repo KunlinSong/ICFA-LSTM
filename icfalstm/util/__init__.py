@@ -12,15 +12,15 @@ from icfalstm.util.reader import (
 )
 from icfalstm.util.visualization import (
     TimeRecorder,
+    print_batch_loss,
     print_divide_line,
     print_epoch_loss,
-    print_loss,
 )
 
 __all__ = [
     'CSVData', 'Config', 'DataDict', 'Dataset', 'Directory', 'Logger',
-    'NPZData', 'Setting', 'TimeRecorder', 'print_divide_line',
-    'print_epoch_loss', 'print_loss'
+    'NPZData', 'Setting', 'TimeRecorder', 'print_batch_loss',
+    'print_divide_line', 'print_epoch_loss'
 ]
 
 # Please keep this list sorted.

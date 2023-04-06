@@ -70,13 +70,14 @@ class TimeRecorder:
         print(f'{" " * NUM_SPACE}took {self.get_spend()} seconds.')
 
 
-def print_loss(loss: float) -> None:
-    """Prints the loss.
+def print_batch_loss(loss: float, batch_idx: int, batch_num: int) -> None:
+    """Prints the batch loss.
 
     Args:
         loss (float): The loss.
     """
-    print(f'\r{" " * NUM_SPACE * 2}loss: {loss}', end='')
+    print(f'\r{" " * NUM_SPACE * 2}batch: {batch_idx} / {batch_num} '
+          f'loss: {loss}', end='')
 
 
 def print_epoch_loss(epoch_loss: float) -> None:
