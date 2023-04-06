@@ -120,7 +120,8 @@ class Training:
         for data_foldername in all_data_foldername:
             data_dirname = os.path.join(self.npz_data_dirname, data_foldername)
             data_config = util.Config(os.path.join(data_dirname, 'config.txt'))
-            if self.config.is_equal_to_for_usage(data_config, 'data'):
+            if self.config.is_equal_to_for_usage(data_config, self.setting,
+                                                 'data'):
                 datadict = util.DataDict(data_dirname,
                                          self.config,
                                          file_type='npz')
@@ -194,6 +195,7 @@ if __name__ == '__main__':
                 last_prediction_loss.item())
             util.print_batch_loss(last_prediction_loss.item(), batch_idx,
                                   len(training.dataloader))
+        print('\n')
         train_epoch_loss = mean_loss(train_epoch_loss)
         train_epoch_last_prediction_loss = mean_loss(
             train_epoch_last_prediction_loss)
@@ -221,6 +223,7 @@ if __name__ == '__main__':
                 last_prediction_loss.item())
             util.print_batch_loss(last_prediction_loss.item(), batch_idx,
                                   len(training.dataloader))
+        print('\n')
         validation_epoch_loss = mean_loss(validation_epoch_loss)
         validation_epoch_last_prediction_loss = mean_loss(
             validation_epoch_last_prediction_loss)

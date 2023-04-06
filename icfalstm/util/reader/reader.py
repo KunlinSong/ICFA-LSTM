@@ -109,12 +109,13 @@ class Setting(Reader):
         """
         super(Setting, self).__init__(path)
 
-    def get_usage_keys(self, usage: Literal['data', 'model']) -> Iterable:
+    def get_usage_keys(
+            self, usage: Literal['data', 'data_dict', 'model']) -> Iterable:
         """Gets the usage attribute of the Setting instance.
 
         Args:
-            usage (['data', 'model']): The name of the usage attribute to get, 
-             either 'data' or 'model'.
+            usage (['data', 'data_dict', 'model']): The name of the usage 
+                attribute to get, either 'data', 'data_dict' or 'model'.
 
         Returns:
             Iterable: The usage attribute of the Setting instance.
@@ -144,16 +145,17 @@ class Config(Reader):
         """
         super(Config, self).__init__(path)
 
-    def is_equal_to_for_usage(self, other: 'Config', setting: Setting,
-                              usage: Literal['data', 'model']) -> bool:
+    def is_equal_to_for_usage(
+            self, other: 'Config', setting: Setting,
+            usage: Literal['data', 'data_dict', 'model']) -> bool:
         """Checks if the two configuration instances are equal for a given 
         usage.
 
         Args:
             other (Config): The other configuration instance.
             setting (Setting): A setting instance.
-            usage (['data', 'model']): The name of the usage, either 'data' or 
-                'model'.
+            usage (['data', 'data_dict', 'model']): The name of the usage, 
+                either 'data', 'data_dict' or 'model'.
 
         Returns:
             bool: True if the two configuration instances are equal 
@@ -186,22 +188,24 @@ class Config(Reader):
             return str(data_to_convert)
 
     def save_for_usage(self, dirname: str, setting: Setting,
-                       usage: Literal['data', 'model'], **kwargs) -> None:
+                       usage: Literal['data', 'data_dict',
+                                      'model'], **kwargs) -> None:
         """Saves the configuration for a given usage.
 
         Args:
             dirname (str): The directory in which to save the 
                 configuration file.
             setting (Setting): A setting instance.
-            usage (['data', 'model']): The name of the usage, 'either 'data' or 
-                'model'.
+            usage (['data', 'data_dict', 'model']): The name of the usage, 
+                either 'data' 'data_dict' or 'model'.
             **kwargs: The keyword arguments to save.
         """
         keys = setting.get_usage_keys(usage)
         with open(os.path.join(dirname, 'config.txt'), 'w') as f:
-            f.writelines((
-                f'{key} : {self._to_str(getattr(self, key))}' for key in keys))
-            f.writelines((f'{key} : {value}' for key, value in kwargs.items()))
+            f.writelines((f'{key} : {self._to_str(getattr(self, key))}\n'
+                          for key in keys))
+            f.writelines(
+                (f'{key} : {value}\n' for key, value in kwargs.items()))
 
     def get_time(self, which: Literal['start', 'end']) -> datetime.datetime:
         """Gets the start or end time of the data by the configuration.

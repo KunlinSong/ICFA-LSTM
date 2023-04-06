@@ -1,13 +1,15 @@
 import datetime
 import os
+import pickle
 from contextlib import suppress
 from typing import Literal
 
 import numpy as np
 import torch
 
-import icfalstm.util.reader as reader
 import icfalstm.util.data.data as data
+import icfalstm.util.reader as reader
+from icfalstm.util.directory import Directory
 
 __all__ = ['DataDict', 'Dataset']
 
@@ -18,6 +20,7 @@ class DataDict:
     Attributes:
         dirname (str): The directory name of the data.
         config (reader.Config): The configuration instance.
+        setting (reader.Setting): The setting instance.
         file_type (['csv', 'npz']): The extension of the data files.
         data ([data.CSVData, data.NPZData]): The data class.
         data_kwargs (dict): The keyword arguments for the data class.
@@ -40,17 +43,20 @@ class DataDict:
     TIME_FORMAT = '%Y%m%d%H%M'
 
     def __init__(self, dirname: str, config: reader.Config,
-                 file_type: Literal['csv', 'npz']) -> None:
+                 setting: reader.Setting, file_type: Literal['csv',
+                                                             'npz']) -> None:
         """Initializes a DataDict object.
 
         Args:
             dirname (str): The directory name of the data.
             config (reader.Config): The configuration instance.
+            setting (reader.Setting): The setting instance.
             file_type (['csv', 'npz']): The extension of the data files, either 
                 'csv' or 'npz'.
         """
         self.dirname = dirname
         self.config = config
+        self.setting = setting
         self.file_type = file_type
         if self.file_type == 'csv':
             self.data = data.CSVData
@@ -235,21 +241,49 @@ class DataDict:
                  for time in times]
                 for times in times_list]
 
+    def _generate_exist_datadict(self) -> None:
+        """Generates the data dictionary for the existing data files.
+
+        Raises:
+            FileNotFoundError: If the data dictionary does not exist.
+        """
+        data_dir = Directory(self.dirname)
+        data_dict_foldernames = data_dir.get_exist_folder_for_usage(
+            'data_dict')
+        for data_dict_foldername in data_dict_foldernames:
+            data_dict_dirname = os.path.join(self.dirname,
+                                             data_dict_foldername)
+            data_dict_config = reader.Config(
+                os.path.join(data_dict_dirname, 'config.txt'))
+            if self.config.is_equal_to_for_usage(data_dict_config,
+                                                 self.setting, 'data_dict'):
+                for dataset_type in ('input', 'target'):
+                    with open(
+                            os.path.join(data_dict_dirname,
+                                         f'{dataset_type}_dict.pickle'),
+                            'rb') as f:
+                        setattr(self, f'{dataset_type}_dict', pickle.load(f))
+                return
+        raise FileNotFoundError
+
     def _generate_input_and_target_filenames(self) -> None:
         """Generates the input and target filenames and add them to input_dict 
         and target_dict.
         """
-        state = self.config.get_time('start')
-        end = self.config.get_time('end')
-        idx = 0
-        while state <= end:
-            with suppress(FileNotFoundError):
-                input_filenames = self._get_input_filenames(state)
-                target_filenames = self._get_target_filenames(state)
-                self.input_dict[idx] = input_filenames
-                self.target_dict[idx] = target_filenames
-                idx += 1
-            state += datetime.timedelta(hours=1)
+        try:
+            self._generate_exist_datadict(self)
+        except FileNotFoundError:
+            state = self.config.get_time('start')
+            end = self.config.get_time('end')
+            idx = 0
+            while state <= end:
+                with suppress(FileNotFoundError):
+                    input_filenames = self._get_input_filenames(state)
+                    target_filenames = self._get_target_filenames(state)
+                    self.input_dict[idx] = input_filenames
+                    self.target_dict[idx] = target_filenames
+                    idx += 1
+                state += datetime.timedelta(hours=1)
 
     def _get_filnames_data(
             self, filenames: list[str],
@@ -311,6 +345,20 @@ class DataDict:
                                        device=device,
                                        dtype=torch.float64),
                           dim=1)
+
+    def save(self) -> None:
+        """Saves the data dict.
+        """
+        directory = Directory(self.dirname)
+        data_dict_foldername = directory.get_new_foldername('data_dict')
+        data_dict_dirname = os.path.join(self.dirname, data_dict_foldername)
+        for dataset_type in ('input', 'target'):
+            with open(
+                    os.path.join(data_dict_dirname,
+                                 f'{dataset_type}_dict.pickle'), 'wb') as f:
+                pickle.dump(getattr(self, f'{dataset_type}_dict'), f)
+        self.config.save_for_usage(data_dict_dirname, self.setting,
+                                   'data_dict')
 
 
 class Dataset(torch.utils.data.Dataset):

@@ -10,7 +10,7 @@ end_month               : 1
 end_day                 : 1
 
 input_hours_num         : 24
-prediction_interval     : 0
+prediction_interval     : 1
 prediction_period       : 24
 
 mode                    : ICFA-LSTM

@@ -1,2 +1,3 @@
 data: cities, attributes, targets, start_year, start_month, start_day, end_year, end_month, end_day
 model: cities, attributes, targets, start_year, start_month, start_day, end_year, end_month, end_day, input_hours_num, prediction_interval, prediction_period, mode, hidden_units, batch_size, learning_rate, weight_decay
+data_dict: start_year, start_month, start_day, end_year, end_month, end_day, input_hours_num, prediction_interval, prediction_period

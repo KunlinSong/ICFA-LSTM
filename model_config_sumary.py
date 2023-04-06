@@ -57,5 +57,5 @@ if __name__ == '__main__':
         f.writelines((
             f'{model_folder}: '
             f'(dir)[{relpath(model_dirname)}] '
-            f'(config)[{relpath(model_dirname, "config.txt")}]'
+            f'(config)[{relpath(model_dirname, "config.txt")}]\n'
             for model_folder, model_dirname in model_dict.items()))

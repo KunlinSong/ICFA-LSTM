@@ -161,4 +161,5 @@ cython_debug/
 
 # ICFALSTM
 #  Ignore all generate files.
+csv_data/data_dict*
 generate/
