@@ -48,11 +48,15 @@ class Training:
             root_dirname (str): The root directory name.
         """
         for feature in Training.BASIC_FEATURES:
-            setattr(self, f'{feature}_dirname',
-                    os.path.join(root_dirname, feature))
+            path = os.path.join(root_dirname, feature)
+            if not os.path.exists(path):
+                os.makedirs(path)
+            setattr(self, f'{feature}_dirname', path)
         for feature in Training.GENERATE_FEATURES:
-            setattr(self, f'{feature}_dirname',
-                    os.path.join(root_dirname, 'generate', feature))
+            path = os.path.join(root_dirname, 'generate', feature)
+            if not os.path.exists(path):
+                os.makedirs(path)
+            setattr(self, f'{feature}_dirname', path)
         self.device = torch.device(
             'cuda' if torch.cuda.is_available() else 'cpu')
         self.config = util.Config(self._get_custom_path('config.txt'))
@@ -60,7 +64,6 @@ class Training:
         self.time_recorder = util.TimeRecorder()
         self.dataset = self._get_dataset()
         self.dataloader = self._get_dataloader()
-        self.validation_dataloader = self._get_dataloader('validation')
         self.using_model_dirname = self._get_using_model_dirname()
         self.logger = util.Logger(self.using_model_dirname, self.config)
         self.model = self._get_model()
@@ -93,7 +96,8 @@ class Training:
             model_dirname = os.path.join(self.model_dirname, model_foldername)
             model_config = util.Config(
                 os.path.join(model_dirname, 'config.txt'))
-            if self.config.is_equal_to_for_usage(model_config, 'model'):
+            if self.config.is_equal_to_for_usage(model_config, self.setting,
+                                                 'model'):
                 return model_dirname
         model_foldername = directory.get_new_foldername('model')
         directory.mkdir(model_foldername)
@@ -124,12 +128,14 @@ class Training:
                                                  'data'):
                 datadict = util.DataDict(data_dirname,
                                          self.config,
+                                         self.setting,
                                          file_type='npz')
-                return util.Dataset(datadict, self.config)
+                return util.Dataset(datadict)
         datadict = util.DataDict(self.csv_data_dirname,
                                  self.config,
+                                 self.setting,
                                  file_type='csv')
-        return util.Dataset(datadict, self.config)
+        return util.Dataset(datadict)
 
     def _get_model(self) -> torch.nn.Module:
         """Gets the model.
@@ -137,16 +143,18 @@ class Training:
         Returns:
             torch.nn.Module: The model.
         """
-        train_model = model.RNNBase(mode=self.config.mode,
-                                    input_size=(len(self.config.cities),
-                                                len(self.config.attributes)),
-                                    hidden_size=self.config.hidden_units,
-                                    num_outputs=len(self.config.targets),
-                                    device=self.device,
-                                    batch_first=True)
+        train_model = model.RNNBase(
+            mode=self.config.mode,
+            input_size=(len(self.config.cities), len(self.config.attributes)),
+            hidden_size=self.config.hidden_units,
+            num_outputs=(1 if isinstance(self.config.targets, str) else len(
+                self.config.targets)),
+            device=self.device,
+            batch_first=True)
         if os.path.exists(self.logger.latest_model):
             train_model.load_state_dict(
                 self.logger.load_state_dict('latest', self.device))
+        return train_model
 
     def _get_dataloader(self) -> torch.utils.data.DataLoader:
         """Gets the dataloader.
@@ -157,7 +165,7 @@ class Training:
         return torch.utils.data.DataLoader(
             self.dataset,
             batch_size=self.config.batch_size,
-            num_workers=16,
+            num_workers=79,
             shuffle=(self.dataset.state == 'train'))
 
 
@@ -174,14 +182,16 @@ if __name__ == '__main__':
         print(f'Epoch: {epoch} / {training.config.max_epoch}')
 
         print('Train')
-        training.time_recorder.get_time('start')
+        training.time_recorder.update_time('start')
         training.time_recorder.print_start()
         training.dataset.switch_to('train')
         train_epoch_loss = []
         train_epoch_last_prediction_loss = []
-        for batch_idx, (input_data,
-                        target_data) in enumerate(training.dataloader,
-                                                  start=1):
+        for batch_idx, (input_cpu_data,
+                        target_cpu_data) in enumerate(training.dataloader,
+                                                      start=1):
+            input_data = input_cpu_data.to(training.device)
+            target_data = target_cpu_data.to(training.device)
             training.optimizer.zero_grad()
             output_data = training.model(input_data)
             loss = training.loss(output_data, target_data)
@@ -189,46 +199,48 @@ if __name__ == '__main__':
             training.optimizer.step()
             train_epoch_loss.append(loss.item())
             last_prediction_loss = training.loss(
-                output_data.permute(1, 0, 2, 3)[-1],
-                target_data.permute(1, 0, 2, 3)[-1])
+                output_data.transpose(0, 1)[-1],
+                target_data.transpose(0, 1)[-1])
             train_epoch_last_prediction_loss.append(
                 last_prediction_loss.item())
             util.print_batch_loss(last_prediction_loss.item(), batch_idx,
                                   len(training.dataloader))
-        print('\n')
+        print()
         train_epoch_loss = mean_loss(train_epoch_loss)
         train_epoch_last_prediction_loss = mean_loss(
             train_epoch_last_prediction_loss)
         util.print_epoch_loss(train_epoch_loss)
-        training.time_recorder.get_time('end')
+        training.time_recorder.update_time('end')
         training.time_recorder.print_end()
         training.time_recorder.print_spend()
 
         print('Validation')
-        training.time_recorder.get_time('start')
+        training.time_recorder.update_time('start')
         training.time_recorder.print_start()
         training.dataset.switch_to('validation')
         validation_epoch_loss = []
         validation_epoch_last_prediction_loss = []
-        for batch_idx, (input_data,
-                        target_data) in enumerate(training.dataloader,
-                                                  start=1):
+        for batch_idx, (input_cpu_data,
+                        target_cpu_data) in enumerate(training.dataloader,
+                                                      start=1):
+            input_data = input_cpu_data.to(training.device)
+            target_data = target_cpu_data.to(training.device)
             output_data = training.model(input_data)
             loss = training.loss(output_data, target_data)
             validation_epoch_loss.append(loss.item())
             last_prediction_loss = training.loss(
-                output_data.permute(1, 0, 2, 3)[-1],
-                target_data.permute(1, 0, 2, 3)[-1])
+                output_data.transpose(0, 1)[-1],
+                target_data.transpose(0, 1)[-1])
             validation_epoch_last_prediction_loss.append(
                 last_prediction_loss.item())
             util.print_batch_loss(last_prediction_loss.item(), batch_idx,
                                   len(training.dataloader))
-        print('\n')
+        print()
         validation_epoch_loss = mean_loss(validation_epoch_loss)
         validation_epoch_last_prediction_loss = mean_loss(
             validation_epoch_last_prediction_loss)
         util.print_epoch_loss(validation_epoch_loss)
-        training.time_recorder.get_time('end')
+        training.time_recorder.update_time('end')
         training.time_recorder.print_end()
         training.time_recorder.print_spend()
 

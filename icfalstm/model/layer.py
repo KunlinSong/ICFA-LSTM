@@ -50,9 +50,9 @@ def _gate_params(num_cities: int, num_attrs: int, num_hiddens: int,
     Returns:
         tuple[Parameter, Parameter, Parameter]: The parameters for the gates.
     """
-    return (_get_param((num_cities, num_hiddens),
+    return (_get_param((num_attrs, num_hiddens),
                        device), _get_param((num_hiddens, num_hiddens), device),
-            _get_bias((num_hiddens,), device))
+            _get_bias((num_cities, num_hiddens), device))
 
 
 class Map(nn.Module):
@@ -73,7 +73,7 @@ class Map(nn.Module):
                 num_attrs).
             device (torch.device): The device to put the parameters on.
         """
-        super(Map).__init__()
+        super(Map, self).__init__()
         self.num_cities, self.num_attrs = input_size
         self.device = device
 
@@ -96,7 +96,9 @@ class MaxMinNorm(nn.Module):
             tuple[torch.Tensor, torch.Tensor]: The output tensor and the 
                 maximum value. 
         """
-        max_vals = torch.max(torch.abs(input), dim=(1, 2)).values
+        max_vals = torch.abs(input)
+        for dim in (1, 2):
+            max_vals = torch.max(max_vals, dim=dim, keepdim=True).values
         return input / max_vals, max_vals
 
 
@@ -105,7 +107,7 @@ class InverseMaxMinNorm(nn.Module):
     """
 
     def __init__(self) -> None:
-        super().__init__()
+        super(InverseMaxMinNorm, self).__init__()
 
     def forward(self, input: torch.Tensor,
                 max_vals: torch.Tensor) -> torch.Tensor:
@@ -195,9 +197,9 @@ class ICA(Map):
         Returns:
             torch.Tensor: The output tensor.
         """
-        x = input.permute(0, 2, 1).reshape(-1, self.num_cities)
+        x = input.transpose(1, 2).reshape(-1, self.num_cities)
         x = torch.matmul(x, self.w_assoc)
-        return x.reshape(-1, self.num_attrs, self.num_cities).permute(0, 2, 1)
+        return x.reshape(-1, self.num_attrs, self.num_cities).transpose(1, 2)
 
 
 class LSTMCell(Map):
@@ -260,27 +262,34 @@ class LSTMCell(Map):
             h = torch.zeros(input.shape[0],
                             input.shape[1],
                             self.num_hiddens,
+                            dtype=torch.float64,
                             device=self.device)
             c = torch.zeros(input.shape[0],
                             input.shape[1],
                             self.num_hiddens,
+                            dtype=torch.float64,
                             device=self.device)
         else:
             h, c = state
         h = h.reshape(-1, self.num_hiddens)
-        c = c.reshape(-1, self.num_hiddens)
-        i = torch.sigmoid(
-            torch.matmul(x, self.w_i) + torch.matmul(h, self.u_i) + self.b_i)
-        f = torch.sigmoid(
-            torch.matmul(x, self.w_f) + torch.matmul(h, self.u_f) + self.b_f)
-        o = torch.sigmoid(
-            torch.matmul(x, self.w_o) + torch.matmul(h, self.u_o) + self.b_o)
-        g = torch.tanh(
-            torch.matmul(x, self.w_g) + torch.matmul(h, self.u_g) + self.b_g)
+        i = torch.sigmoid((torch.matmul(x, self.w_i) +
+                           torch.matmul(h, self.u_i)
+                          ).reshape(-1, self.num_cities, self.num_hiddens) +
+                          self.b_i)
+        f = torch.sigmoid((torch.matmul(x, self.w_f) +
+                           torch.matmul(h, self.u_f)
+                          ).reshape(-1, self.num_cities, self.num_hiddens) +
+                          self.b_f)
+        o = torch.sigmoid((torch.matmul(x, self.w_o) +
+                           torch.matmul(h, self.u_o)
+                          ).reshape(-1, self.num_cities, self.num_hiddens) +
+                          self.b_o)
+        g = torch.tanh((torch.matmul(x, self.w_g) + torch.matmul(h, self.u_g)
+                       ).reshape(-1, self.num_cities, self.num_hiddens) +
+                       self.b_g)
         c = f * c + i * g
         h = o * torch.tanh(c)
-        return (h.reshape(-1, self.num_cities, self.num_hiddens),
-                c.reshape(-1, self.num_cities, self.num_hiddens))
+        return (h, c)
 
 
 class GLSTMCell(LSTMCell):
@@ -340,37 +349,42 @@ class GLSTMCell(LSTMCell):
             h = torch.zeros(input.shape[0],
                             input.shape[1],
                             self.num_hiddens,
+                            dtype=torch.float64,
                             device=self.device)
             c = torch.zeros(input.shape[0],
                             input.shape[1],
                             self.num_hiddens,
+                            dtype=torch.float64,
                             device=self.device)
         else:
             h, c = state
 
-        h = h.permute(0, 2, 1).reshape(-1, self.num_cities)
+        h = h.transpose(1, 2).reshape(-1, self.num_cities)
         h_adj = torch.matmul(h, self.w_adj)
-        h = h.reshape(-1, self.num_hiddens, self.num_cities).permute(0, 2, 1)
+        h = h.reshape(-1, self.num_hiddens, self.num_cities).transpose(1, 2)
         h_adj = h_adj.reshape(-1, self.num_hiddens,
-                              self.num_cities).permute(0, 2, 1)
+                              self.num_cities).transpose(1, 2)
 
         h = h.reshape(-1, self.num_hiddens)
-        c = c.reshape(-1, self.num_hiddens)
-        i = torch.sigmoid(
-            torch.matmul(x, self.w_i) + torch.matmul(h_adj, self.u_i) +
-            self.b_i)
-        f = torch.sigmoid(
-            torch.matmul(x, self.w_f) + torch.matmul(h, self.u_f) + self.b_f)
-        o = torch.sigmoid(
-            torch.matmul(x, self.w_o) + torch.matmul(h_adj, self.u_o) +
-            self.b_o)
-        g = torch.tanh(
-            torch.matmul(x, self.w_g) + torch.matmul(h_adj, self.u_g) +
-            self.b_g)
+        i = torch.sigmoid((torch.matmul(x, self.w_i) +
+                           torch.matmul(h_adj, self.u_i)
+                          ).reshape(-1, self.num_cities, self.num_hiddens) +
+                          self.b_i)
+        f = torch.sigmoid((torch.matmul(x, self.w_f) +
+                           torch.matmul(h, self.u_f)
+                          ).reshape(-1, self.num_cities, self.num_hiddens) +
+                          self.b_f)
+        o = torch.sigmoid((torch.matmul(x, self.w_o) +
+                           torch.matmul(h_adj, self.u_o)
+                          ).reshape(-1, self.num_cities, self.num_hiddens) +
+                          self.b_o)
+        g = torch.tanh((torch.matmul(x, self.w_g) +
+                        torch.matmul(h_adj, self.u_g)
+                       ).reshape(-1, self.num_cities, self.num_hiddens) +
+                       self.b_g)
         c = f * c + i * g
         h = o * torch.tanh(c)
-        return (h.reshape(-1, self.num_cities, self.num_hiddens),
-                c.reshape(-1, self.num_cities, self.num_hiddens))
+        return (h, c)
 
 
 class GRUCell(Map):
@@ -428,19 +442,25 @@ class GRUCell(Map):
             h = torch.zeros(input.shape[0],
                             input.shape[1],
                             self.num_hiddens,
+                            dtype=torch.float64,
                             device=self.device)
         else:
-            h = state
+            h = state[0]
         h = h.reshape(-1, self.num_hiddens)
-        z = torch.sigmoid(
-            torch.matmul(x, self.w_z) + torch.matmul(h, self.u_z) + self.b_z)
-        r = torch.sigmoid(
-            torch.matmul(x, self.w_r) + torch.matmul(h, self.u_r) + self.b_r)
-        h_tilde = torch.tanh(
-            torch.matmul(x, self.w_h) + torch.matmul(r * h, self.u_h) +
-            self.b_h)
+        z = torch.sigmoid((torch.matmul(x, self.w_z) +
+                           torch.matmul(h, self.u_z)
+                          ).reshape(-1, self.num_cities, self.num_hiddens) +
+                          self.b_z)
+        r = torch.sigmoid((torch.matmul(x, self.w_r) +
+                           torch.matmul(h, self.u_r)
+                          ).reshape(-1, self.num_cities, self.num_hiddens) +
+                          self.b_r)
+        h_tilde = torch.tanh((torch.matmul(x, self.w_h) +
+                              torch.matmul(r * h, self.u_h)
+                             ).reshape(-1, self.num_cities, self.num_hiddens) +
+                             self.b_h)
         h = (1 - z) * h + z * h_tilde
-        return h.reshape(-1, self.num_cities, self.num_hiddens)
+        return (h,)
 
 
 class Dense(torch.nn.Module):

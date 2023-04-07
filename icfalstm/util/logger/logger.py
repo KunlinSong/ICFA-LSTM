@@ -192,8 +192,9 @@ class Logger:
             input (torch.Tensor): The input to the model.
         """
         fake_input = torch.randn(
-            (self.config.input_hours_num, self.batch_size,
-             len(self.config.cities), len(self.config.attributes)))
+            (self.config.batch_size, self.input_hours_num,
+             len(self.config.cities), len(self.config.attributes)),
+            dtype=torch.float64, device=model.device)
         self.writer.add_graph(model, fake_input)
 
     def early_stopping(self, epoch: int) -> bool:

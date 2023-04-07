@@ -271,7 +271,7 @@ class DataDict:
         and target_dict.
         """
         try:
-            self._generate_exist_datadict(self)
+            self._generate_exist_datadict()
         except FileNotFoundError:
             state = self.config.get_time('start')
             end = self.config.get_time('end')
@@ -284,6 +284,7 @@ class DataDict:
                     self.target_dict[idx] = target_filenames
                     idx += 1
                 state += datetime.timedelta(hours=1)
+            self.save()
 
     def _get_filnames_data(
             self, filenames: list[str],
@@ -304,34 +305,32 @@ class DataDict:
             for filename in filenames
         ]
 
-    def get_input_data(self, idx: int,
-                       dataset_state: Literal['train', 'validation', 'test'],
-                       device: torch.device) -> torch.Tensor:
+    def get_input_data(
+            self, idx: int, dataset_state: Literal['train', 'validation',
+                                                   'test']) -> torch.Tensor:
         """Gets the input data.
 
         Args:
             idx (int): The index of the data.
             dataset_state (['train', 'validation', 'test']): The state of the 
                 dataset, either 'train', 'validation' or 'test'.
-            device (torch.device): The device to load the data to.
 
         Returns:
             torch.Tensor: The input data.
         """
         filenames = getattr(self, f'{dataset_state}_input_dict')[idx]
         data = self._get_filnames_data(filenames, 'input')
-        return torch.tensor(data, device=device)
+        return torch.tensor(np.array(data))
 
-    def get_target_data(self, idx: int,
-                        dataset_state: Literal['train', 'validation', 'test'],
-                        device: torch.device) -> torch.Tensor:
+    def get_target_data(
+            self, idx: int, dataset_state: Literal['train', 'validation',
+                                                   'test']) -> torch.Tensor:
         """Gets the target data.
 
         Args:
             idx (int): The index of the data.
             dataset_state (['train', 'validation', 'test']): The state of the 
                 dataset, either 'train', 'validation' or 'test'.
-            device (torch.device): The device to load the data to.
 
         Returns:
             torch.Tensor: The target data.
@@ -341,9 +340,7 @@ class DataDict:
             self._get_filnames_data(filenames, 'target')
             for filenames in filenames_list
         ]
-        return torch.mean(torch.tensor(data,
-                                       device=device,
-                                       dtype=torch.float64),
+        return torch.mean(torch.tensor(np.array(data), dtype=torch.float64),
                           dim=1)
 
     def save(self) -> None:
@@ -351,6 +348,7 @@ class DataDict:
         """
         directory = Directory(self.dirname)
         data_dict_foldername = directory.get_new_foldername('data_dict')
+        directory.mkdir(data_dict_foldername)
         data_dict_dirname = os.path.join(self.dirname, data_dict_foldername)
         for dataset_type in ('input', 'target'):
             with open(
@@ -366,11 +364,10 @@ class Dataset(torch.utils.data.Dataset):
     
     Attributes:
         datadict (DataDict): The DataDict instance.
-        device (torch.device): The device to load the data to.
         state (['train', 'validation', 'test']): The state of the dataset,
     """
 
-    def __init__(self, datadict: DataDict, device: torch.device) -> None:
+    def __init__(self, datadict: DataDict) -> None:
         """Initializes a Dataset object.
 
         Args:
@@ -378,7 +375,6 @@ class Dataset(torch.utils.data.Dataset):
         """
         super(Dataset, self).__init__()
         self.datadict = datadict
-        self.device = device
         self.state = None
 
     def switch_to(self, state: Literal['train', 'validation', 'test']):
@@ -399,11 +395,7 @@ class Dataset(torch.utils.data.Dataset):
         Returns:
             tuple[torch.Tensor, torch.Tensor]: The data of input and target.
         """
-        basic_kwargs = {
-            'idx': idx,
-            'dataset_state': self.state,
-            'device': self.device
-        }
+        basic_kwargs = {'idx': idx, 'dataset_state': self.state}
         input_data = self.datadict.get_input_data(**basic_kwargs)
         target_data = self.datadict.get_target_data(**basic_kwargs)
         return input_data, target_data

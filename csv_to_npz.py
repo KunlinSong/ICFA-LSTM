@@ -28,4 +28,4 @@ if __name__ == '__main__':
         print(f'\rFinished: {idx / len(csv_data_list) * 100:.2f}% '
               f'{idx} / {len(csv_data_list)}', end='')
     config.save_for_usage(data_to_dirname, setting, 'data')
-    print('\n')
+    print()

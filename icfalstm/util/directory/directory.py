@@ -60,9 +60,9 @@ class Directory:
         exist_folder = self.get_exist_folder_for_usage(usage)
         # Use regex to get the number in foldername.
         pattern = r"\d+"
-        folder_numbers = {
+        folder_numbers = (
             re.findall(pattern, folder)[0] for folder in exist_folder
-        }
+        )
         num = 0
         while num in folder_numbers:
             num += 1

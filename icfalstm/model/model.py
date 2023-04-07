@@ -72,7 +72,8 @@ class RNNBase(nn.Module):
             device=self.device)
         self.norm = mylayer.MaxMinNorm()
         self.inverse_norm = mylayer.InverseMaxMinNorm()
-        self.output_layer = nn.Linear(self.hidden_size, self.num_outputs)
+        self.output_layer = mylayer.Dense((self.num_cities, self.hidden_size),
+                                          self.num_outputs, self.device)
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         """Forward pass.
@@ -83,14 +84,14 @@ class RNNBase(nn.Module):
         Returns:
             torch.Tensor: The output.
         """
-        x = input.permute(1, 0, 2, 3) if self.batch_first else input
+        x = input.transpose(0, 1) if self.batch_first else input
         output = []
         state = None
         for time_x in x:
             y, max_vals = self.norm(time_x)
             if self.prelayer is not None:
                 y = self.prelayer(y)
-            y, state = self.layer(y, state)
-            y = self.inverse_norm(y, max_vals)
+            state = self.layer(y, state)
+            y = self.inverse_norm(state[0], max_vals)
             output.append(self.output_layer(y).unsqueeze(0))
-        return torch.cat(output, dim=0).permute(1, 0, 2, 3)
+        return torch.cat(output, dim=0).transpose(0, 1).squeeze(dim=-1)

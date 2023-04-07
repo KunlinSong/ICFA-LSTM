@@ -41,7 +41,7 @@ class TimeRecorder:
     def get_spend(self) -> None:
         """Gets the time spend.
         """
-        return f'{self.start.timestamp() - self.end.timestamp():.2f}'
+        return f'{self.end.timestamp() - self.start.timestamp():.2f}'
 
     def get_time(self, which: Literal['start', 'end']) -> str:
         """Gets the time.
@@ -57,7 +57,7 @@ class TimeRecorder:
     def print_start(self) -> None:
         """Print the start time.
         """
-        print(f'{" " * NUM_SPACE}began at {self.get_time("start")}.')
+        print(f'{" " * NUM_SPACE}began at {self.get_time("end")}.')
 
     def print_end(self) -> None:
         """Print the end time.
@@ -76,8 +76,10 @@ def print_batch_loss(loss: float, batch_idx: int, batch_num: int) -> None:
     Args:
         loss (float): The loss.
     """
-    print(f'\r{" " * NUM_SPACE * 2}batch: {batch_idx} / {batch_num} '
-          f'loss: {loss}', end='')
+    print(
+        f'\r{" " * NUM_SPACE * 2}batch: {batch_idx} / {batch_num} '
+        f'loss: {loss}',
+        end='')
 
 
 def print_epoch_loss(epoch_loss: float) -> None:
