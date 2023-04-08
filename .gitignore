@@ -161,4 +161,4 @@ cython_debug/
 
 # ICFALSTM
 #  Ignore all generate files.
-generate/
+generated/
