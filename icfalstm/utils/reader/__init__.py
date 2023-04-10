@@ -1,6 +1,6 @@
-from icfalstm.utils.reader.reader import Config
+from icfalstm.utils.reader.reader import (
+    Config,
+    ConfigSaver,
+)
 
-__all__ = ['Config']
-
-# Please keep this list sorted.
-assert __all__ == sorted(__all__)
+__all__ = ['Config', 'ConfigSaver']

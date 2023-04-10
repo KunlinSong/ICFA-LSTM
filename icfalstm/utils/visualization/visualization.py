@@ -3,6 +3,8 @@ import os
 import statistics
 from typing import Literal
 
+__all__ = ['LossRecorder', 'TimeRecorder', 'print_separator']
+
 NUM_SPACE = 2
 space_str = ' ' * NUM_SPACE
 
@@ -211,6 +213,10 @@ class LossRecorder:
     def print_epoch_loss(self) -> None:
         """Prints the loss of the current epoch."""
         print(self.epoch_loss)
+    
+    def get_epoch_loss(self) -> float:
+        """Returns the loss of the current epoch."""
+        return self.epoch_loss.get_epoch_loss()
 
 
 def print_separator() -> None:

@@ -2,6 +2,8 @@ import json
 import os
 from typing import Any, Literal
 
+__all__ = ['Config', 'ConfigSaver']
+
 
 class Reader:
     """A reader that reads a json file and returns the options as a dictionary.
@@ -99,7 +101,8 @@ class Config(Reader):
         return os.path.join(dirname, 'config.json')
 
     def save(self, dirname: str, usage: Literal['npz_data', 'model',
-                                                'data_dict'], **kwargs) -> None:
+                                                'data_dict'],
+             **kwargs) -> None:
         """Saves the config to a json file in the given directory for the given 
         usage.
 

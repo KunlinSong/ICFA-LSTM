@@ -1,5 +1,7 @@
 import os
 
+__all__ = ['Directory']
+
 
 class Directory:
     """The Directory class is a wrapper around the os.path module. It is used 
@@ -86,7 +88,7 @@ class Directory:
             int(basename.rsplit('_', maxsplit=1)[-1])
             for basename in self.find_usage_basenames(usage)
         ]
-    
+
     def get_new_usage_idx(self, usage: str) -> str:
         """Finds the next available index for the directory with the given 
         usage.
@@ -116,7 +118,7 @@ class Directory:
                 usage.
         """
         return f'{usage}_{self.get_new_usage_idx(usage)}'
-    
+
     def get_new_usage_dir(self, usage: str) -> str:
         """Finds the next available directory for the directory with the given
 
@@ -128,6 +130,6 @@ class Directory:
                 usage.
         """
         return self.join(self.get_new_usage_basename(usage))
-    
+
     def __repr__(self) -> str:
         return self.dirname

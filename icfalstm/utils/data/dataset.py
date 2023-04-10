@@ -12,6 +12,8 @@ import icfalstm.utils.reader as reader
 from icfalstm.utils.data.data import CSVData, NPZData
 from icfalstm.utils.directory import Directory
 
+__all__ = ['DataDict', 'Dataset']
+
 
 class DeltaSet:
     """A class that stores the unique values of a nested list.
@@ -524,6 +526,6 @@ class Dataset(data.Dataset):
         input_data = self._get_input_data(idx)
         target_data = self._get_target_data(idx)
         return input_data, target_data
-    
+
     def __len__(self) -> int:
         return len(getattr(self, f'{self.state}_input_dict'))

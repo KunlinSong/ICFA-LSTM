@@ -6,6 +6,7 @@ import pandas as pd
 
 from icfalstm.utils.reader import Config
 
+__all__ = ['CSVData', 'NPZData']
 
 class CSVData:
     """A csv file reader that generates numpy arrays for input and target data.
