@@ -181,20 +181,13 @@ class LossLogger:
             torch.unsqueeze(true_values, 0)
         ]
         values = torch.cat(values, dim=0)
-        assert values.dim() in (3, 4)
+        assert values.dim() == 4
         predicted_true_dict = {}
-        if values.dim() == 3:
-            values = torch.permute(2, 0, 1)
-            attr = config['targets'][0]
-            attr_dict = self._get_attr_dict(values)
+        values = torch.permute(values, (3, 2, 0, 1))
+        for attr_idx, attr_values in enumerate(values):
+            attr = config['targets'][attr_idx]
+            attr_dict = self._get_attr_dict(attr_values, config)
             predicted_true_dict[attr] = attr_dict
-
-        if values.dim() == 4:
-            values = torch.permute(3, 2, 0, 1)
-            for attr_idx, attr_values in enumerate(values):
-                attr = config['targets'][attr_idx]
-                attr_dict = self._get_attr_dict(attr_values)
-                predicted_true_dict[attr] = attr_dict
 
         with open(self.predicted_true, 'wb') as f:
             pickle.dump(predicted_true_dict, f)
@@ -325,8 +318,8 @@ class Logger:
         """
         fake_input = torch.randn(self.config['batch_size'],
                                  self.config['input_hours_num'],
-                                 len(self.config['cities'],
-                                     len(self.config['attributes'])),
+                                 len(self.config['cities']),
+                                 len(self.config['attributes']),
                                  dtype=torch.float64,
                                  device=model.device)
         self.writer.add_graph(model, fake_input)

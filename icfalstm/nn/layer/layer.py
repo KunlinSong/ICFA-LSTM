@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 
 import torch
 import torch.nn as nn
@@ -7,6 +7,17 @@ from torch.nn.parameter import Parameter
 __all__ = [
     'Dense', 'GRUCell', 'ICA', 'ICFA', 'LSTMCell', 'MaxMinNorm', 'RNNCell'
 ]
+
+
+def _get_assoc_mat(size: int, device: torch.device):
+    mat = torch.rand(size, size, dtype=torch.float64, device=device) *2 - 1
+    mat.fill_diagonal_(1)
+    return Parameter(mat)
+
+def _to_range(min_val: Union[int, float], max_val: Union[int, float], mat: torch.Tensor):
+    mask = (mat < min_val) | (mat > max_val)
+    mat[mask] = torch.rand(mask.sum()) * (max_val - min_val) + min_val
+    return mat
 
 
 def _get_param(shape: tuple[int], device: torch.device) -> Parameter:
@@ -137,7 +148,7 @@ class ICA(Map):
             device (torch.device): The device of the map layer.
         """
         super(ICA, self).__init__(map_units, num_attrs, hidden_units, device)
-        self.w_assoc = _get_param((map_units, map_units), device)
+        self.w_assoc = _get_assoc_mat(map_units, device)
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         """Performs the forward pass.
@@ -148,6 +159,7 @@ class ICA(Map):
         Returns:
             torch.Tensor: The output tensor.
         """
+        self.w_assoc = _to_range(-1, 1, self.w_assoc)
         x = torch.transpose(input, -1, -2)
         y = torch.reshape(y, (-1, self.map_units))
         y = torch.matmul(y, self.w_assoc)
@@ -180,6 +192,7 @@ class ICFA(Map):
         super(ICFA, self).__init__(map_units, num_attrs, hidden_units, device)
         for idx in range(num_attrs):
             w_assoc = _get_param((map_units, map_units), device)
+            w_assoc.fill_diagonal_(1)
             setattr(self, f'w_assoc_{idx}', w_assoc)
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
@@ -195,6 +208,8 @@ class ICFA(Map):
         result = []
         for idx, mat in enumerate(attrs_inputs):
             w_assoc = getattr(self, f'w_assoc_{idx}')
+            w_assoc = _to_range(-1, 1, w_assoc)
+            w_assoc.fill_diagonal_(1)
             x = torch.squeeze(mat, -1)
             y = torch.matmul(x, w_assoc)
             y = torch.unsqueeze(y, -1)
@@ -258,12 +273,14 @@ class LSTMCell(Map):
             tuple[torch.Tensor, torch.Tensor]: The new state of the cell.
         """
         if state is None:
-            h = torch.zeros((input.shape[0], self.map_units),
-                            dtype=torch.float64,
-                            device=self.device)
-            c = torch.zeros((input.shape[0], self.map_units),
-                            dtype=torch.float64,
-                            device=self.device)
+            h = torch.zeros(
+                (input.shape[0], self.map_units, self.hidden_units),
+                dtype=torch.float64,
+                device=self.device)
+            c = torch.zeros(
+                (input.shape[0], self.map_units, self.hidden_units),
+                dtype=torch.float64,
+                device=self.device)
         else:
             h, c = state
         output_shape = h.shape
@@ -343,9 +360,10 @@ class GRUCell(Map):
             tuple[torch.Tensor, torch.Tensor]: The new state of the cell.
         """
         if state is None:
-            h = torch.zeros((input.shape[0], self.map_units),
-                            dtype=torch.float64,
-                            device=self.device)
+            h = torch.zeros(
+                (input.shape[0], self.map_units, self.hidden_units),
+                dtype=torch.float64,
+                device=self.device)
         else:
             h = state[0]
         output_shape = h.shape
@@ -409,9 +427,10 @@ class RNNCell(Map):
             tuple[torch.Tensor, torch.Tensor]: The new state of the cell.
         """
         if state is None:
-            h = torch.zeros((input.shape[0], self.map_units),
-                            dtype=torch.float64,
-                            device=self.device)
+            h = torch.zeros(
+                (input.shape[0], self.map_units, self.hidden_units),
+                dtype=torch.float64,
+                device=self.device)
         else:
             h = state[0]
         h = torch.tanh(self.dense_i(input) + self.dense_h(h))

@@ -71,7 +71,7 @@ class RNNBase(nn.Module):
                                                          self.hidden_units,
                                                          self.device)
             self.body_layer = getattr(mylayer, f'{body_layer_mode}Cell')(
-                self.map_units, self.hidden_units, self.hidden_units,
+                self.map_units, self.num_attrs, self.hidden_units,
                 self.device)
         else:
             self.body_layer = getattr(mylayer,
@@ -98,10 +98,10 @@ class RNNBase(nn.Module):
             if self.assoc_layer is not None:
                 y = self.assoc_layer(y)
             state = self.body_layer(y, state)
-            y = self.norm(y, inverse=True)
+            y = self.norm(state[0], inverse=True)
             y = self.output_layer(y)
             y = torch.unsqueeze(y, 0)
             output.append(y)
         output = torch.cat(output, 0)
         output = torch.transpose(output, 0, 1) if self.batch_first else output
-        return output.squeeze(-1)
+        return output

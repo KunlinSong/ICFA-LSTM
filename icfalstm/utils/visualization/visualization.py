@@ -116,7 +116,7 @@ class BatchLoss:
 
     def __repr__(self) -> str:
         return (f'\r{space_str * 2}Batch: {self.batch_idx} / {self.batch_num} '
-                f'Loss: {self.loss:.4g}')
+                f'Loss: {self.loss:10.4g}')
 
 
 class EpochLoss:
@@ -165,7 +165,7 @@ class EpochLoss:
         return statistics.mean(self.epoch_loss_lst)
 
     def __repr__(self) -> str:
-        return (f'\r{space_str * 2}Loss: {self.get_epoch_loss():.4g}')
+        return (f'\n{space_str * 2}Loss: {self.get_epoch_loss():>10.4g}')
 
 
 class LossRecorder:

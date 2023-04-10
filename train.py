@@ -51,32 +51,41 @@ class Trainer:
     def _get_data_dict(self) -> myutils.DataDict:
         csv_data_dirname = self.root_dir.join('csv_data')
         data_dict_dirname = self.root_dir.join('generated', 'data_dict')
+        if not os.path.exists(data_dict_dirname):
+            os.makedirs(data_dict_dirname)
         try:
-            data_dict = myutils.DataDict.from_saved(data_dict_dirname)
+            data_dict = myutils.DataDict.from_saved(data_dict_dirname,
+                                                    self.config)
         except FileNotFoundError:
             data_dict = myutils.DataDict.from_data(csv_data_dirname,
                                                    self.config)
             data_dict.save(data_dict_dirname)
-            return data_dict
+        return data_dict
 
     def _init_dataloader(self):
+        self.dataset.switch_to('train')
         self.train_loader = torch.utils.data.DataLoader(
             self.dataset,
             batch_size=self.config['batch_size'],
-            num_workers=79,
+            num_workers=os.cpu_count(),
             shuffle=True)
+        self.dataset.switch_to('val')
         self.val_loader = torch.utils.data.DataLoader(
             self.dataset,
             batch_size=self.config['batch_size'],
-            num_workers=79,
+            num_workers=os.cpu_count(),
             shuffle=False)
-        self.test_loader = torch.utils.data.DataLoader(self.dataset,
-                                                       batch_size=1,
-                                                       num_workers=79,
-                                                       shuffle=False)
+        self.dataset.switch_to('test')
+        self.test_loader = torch.utils.data.DataLoader(
+            self.dataset,
+            batch_size=1,
+            num_workers=os.cpu_count(),
+            shuffle=False)
 
     def _init_logger(self):
         model_dirname = self.root_dir.join('generated', 'model')
+        if not os.path.exists(model_dirname):
+            os.makedirs(model_dirname)
         model_dir = myutils.Directory(model_dirname)
         model_foldernames = model_dir.find_usage_basenames('model')
         for model_foldername in model_foldernames:
@@ -113,7 +122,7 @@ class Trainer:
     def _init_recorder(self):
         self.time_recorder = myutils.TimeRecorder()
         self.loss_recorder = myutils.LossRecorder(self.config['max_epoch'])
-    
+
     def load_best_state_dict(self):
         with suppress(FileNotFoundError):
             model_state_dict = self.logger.get_state_dict('best', self.device)
@@ -123,18 +132,20 @@ class Trainer:
 if __name__ == '__main__':
     root_dirname = os.getcwd()
     trainer = Trainer(root_dirname)
-    for epoch in range(trainer.logger.start_epoch, trainer.config['max_epoch'] + 1):
+    for epoch in range(trainer.logger.start_epoch,
+                       trainer.config['max_epoch'] + 1):
         if trainer.logger.early_stopping(epoch):
             break
         myutils.print_separator()
         print(f'Epoch: {epoch} / {trainer.config["max_epoch"]}')
-        
+
         print('Train')
         trainer.time_recorder.update_time('start')
         trainer.time_recorder.print_time('start')
         trainer.dataset.switch_to('train')
         trainer.loss_recorder.new_epoch(epoch, len(trainer.train_loader))
-        for i, (cpu_inputs, cpu_targets) in enumerate(trainer.train_loader, start=1):
+        for i, (cpu_inputs, cpu_targets) in enumerate(trainer.train_loader,
+                                                      start=1):
             inputs = cpu_inputs.to(trainer.device)
             targets = cpu_targets.to(trainer.device)
             trainer.optimizer.zero_grad()
@@ -145,7 +156,8 @@ if __name__ == '__main__':
             trainer.loss_recorder.update(i, loss.item())
             trainer.loss_recorder.print_batch_loss()
         trainer.loss_recorder.print_epoch_loss()
-        trainer.logger.add_loss('train', trainer.loss_recorder.get_epoch_loss(), epoch)
+        trainer.logger.add_loss('train',
+                                trainer.loss_recorder.get_epoch_loss(), epoch)
         trainer.time_recorder.update_time('end')
         trainer.time_recorder.print_time('end')
         trainer.time_recorder.print_spend()
@@ -155,23 +167,27 @@ if __name__ == '__main__':
         trainer.time_recorder.print_time('start')
         trainer.dataset.switch_to('val')
         trainer.loss_recorder.new_epoch(epoch, len(trainer.val_loader))
-        for i, (cpu_inputs, cpu_targets) in enumerate(trainer.val_loader, start=1):
-            inputs = cpu_inputs.to(trainer.device)
-            targets = cpu_targets.to(trainer.device)
-            outputs = trainer.model(inputs)
-            loss = trainer.loss(outputs, targets)
-            trainer.loss_recorder.update(i, loss.item())
-            trainer.loss_recorder.print_batch_loss()
+        for i, (cpu_inputs, cpu_targets) in enumerate(trainer.val_loader,
+                                                      start=1):
+            with torch.no_grad():
+                inputs = cpu_inputs.to(trainer.device)
+                targets = cpu_targets.to(trainer.device)
+                outputs = trainer.model(inputs)
+                loss = trainer.loss(outputs, targets)
+                trainer.loss_recorder.update(i, loss.item())
+                trainer.loss_recorder.print_batch_loss()
         trainer.loss_recorder.print_epoch_loss()
-        trainer.logger.add_loss('val', trainer.loss_recorder.get_epoch_loss(), epoch)
+        trainer.logger.add_loss('val', trainer.loss_recorder.get_epoch_loss(),
+                                epoch)
         trainer.time_recorder.update_time('end')
         trainer.time_recorder.print_time('end')
         trainer.time_recorder.print_spend()
 
         trainer.logger.save_state_dict(trainer.model.state_dict(), 'latest')
-        if trainer.logger.is_best(epoch, trainer.loss_recorder.get_epoch_loss()):
+        if trainer.logger.is_best(epoch,
+                                  trainer.loss_recorder.get_epoch_loss()):
             trainer.logger.save_state_dict(trainer.model.state_dict(), 'best')
-    
+
     myutils.print_separator()
     print('Test')
     trainer.load_best_state_dict()
@@ -180,13 +196,15 @@ if __name__ == '__main__':
     true_values = []
     predicted_values = []
     trainer.dataset.switch_to('test')
-    for i, (cpu_inputs, cpu_targets) in enumerate(trainer.test_loader, start=1):
-        inputs = cpu_inputs.to(trainer.device)
-        targets = cpu_targets.to(trainer.device)
-        outputs = trainer.model(inputs)
-
-        true_values.append(torch.transpose(targets, 0, 1)[-1].squeeze(0))
-        predicted_values.append(torch.transpose(outputs, 0, 1)[-1].squeeze(0))
+    for cpu_inputs, cpu_targets in trainer.test_loader:
+        with torch.no_grad():
+            inputs = cpu_inputs.to(trainer.device)
+            targets = cpu_targets.to(trainer.device)
+            outputs = trainer.model(inputs)
+            true_values.append(
+                torch.transpose(targets, 0, 1)[-1].to('cpu'))
+            predicted_values.append(
+                torch.transpose(outputs, 0, 1)[-1].to('cpu'))
     print('Add to logs ...')
     true_values = torch.cat(true_values, dim=0)
     predicted_values = torch.cat(predicted_values, dim=0)
@@ -195,6 +213,3 @@ if __name__ == '__main__':
     trainer.time_recorder.update_time('end')
     trainer.time_recorder.print_time('end')
     trainer.time_recorder.print_spend()
-
-
-

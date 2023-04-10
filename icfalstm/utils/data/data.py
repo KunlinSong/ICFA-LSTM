@@ -33,7 +33,7 @@ class CSVData:
         self.path = path
         for attr in CSVData.ATTRIBUTES:
             setattr(self, attr, config[attr])
-        self.df = pd.read_csv(self.path)
+        self.df = pd.read_csv(self.path, index_col=0)
     
     def get_data(self, which: Literal['input', 'target']) -> np.ndarray:
         """Returns the input or target data as a numpy array.
@@ -74,8 +74,8 @@ class CSVData:
         basename_no_ext = self._get_basename_without_ext()
         np.savez(
             os.path.join(dirname, f'{basename_no_ext}.npz'),
-            input_data=self.input_data,
-            target_data=self.target_data,
+            input_data=self.get_data('input'),
+            target_data=self.get_data('target'),
         )
     
 class NPZData:

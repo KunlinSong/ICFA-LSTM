@@ -207,8 +207,9 @@ class DataDict:
         data_dict_basenames = directory.find_usage_basenames('data_dict')
         for basename in data_dict_basenames:
             data_dict_config_path = directory.join(basename, 'config.json')
-            if config.is_equal(reader.Config(data_dict_config_path),
-                               'data_dict'):
+            if config.is_equal(
+                    reader.Config(data_dict_config_path, config.config_saver),
+                    'data_dict'):
                 kwargs = cls._get_kwargs_from_saved(directory.join(basename),
                                                     config)
                 return cls(**kwargs)
@@ -405,13 +406,14 @@ def _to_dir(lst: list, dirname: str, filetype: Literal['csv', 'npz']) -> None:
         filetype (['csv', 'npz']): The filetype of the paths in the converted 
             list.
     """
+    result = []
     directory = Directory(dirname)
-    for i, item in enumerate(lst):
+    for item in lst:
         if isinstance(item, list):
-            _to_dir(item, dirname, filetype)
+            result.append(_to_dir(item, dirname, filetype))
         else:
-            lst[i] = directory.join(f'{item}.{filetype}')
-
+            result.append(directory.join(f'{item}.{filetype}'))
+    return result
 
 class Dataset(data.Dataset):
     """Dataset class.
