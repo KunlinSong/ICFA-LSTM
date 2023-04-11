@@ -1,0 +1,12 @@
+{
+    "npz_data": [
+        "cities", "attributes", "targets"
+    ],
+    "model": [
+        "cities", "attributes", "targets", "input_hours_num",
+        "prediction_interval", "prediction_period", "mode", "hidden_units"
+    ],
+    "data_dict": [
+        "input_hours_num", "prediction_interval", "prediction_period"
+    ]
+}

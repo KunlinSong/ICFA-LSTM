@@ -1,0 +1,32 @@
+{
+    "cities": [
+        "Beijing", "Tianjin", "Shijiazhuang", "Tangshan", "Langfang", "Baoding",
+        "Cangzhou", "Hengshui", "Xingtai", "Handan", "Taiyuan", "Yangquan",
+        "Changzhi", "Jincheng", "Jinan", "Zibo", "Jining", "Dezhou",
+        "Liaocheng", "Binzhou", "Heze", "Zhengzhou", "Kaifeng", "Anyang",
+        "Hebi", "Xinxiang", "Jiaozuo", "Puyang"
+    ],
+    "attributes": [
+        "10 metre U wind component", "Mean sea level pressure",
+        "2 metre temperature", "Surface pressure",
+        "2 metre dewpoint temperature", "10 metre V wind component",
+        "PM2.5", "PM10", "SO2", "NO2", "O3", "CO"
+    ],
+    "targets": [
+        "O3"
+    ],
+    "input_hours_num"        : 24,
+    "prediction_interval"    : 1,
+    "prediction_period"      : 24,
+
+    "mode"                   : "ICFA-LSTM",
+    "hidden_units"           : 64,
+    "train_val_test"         : [6, 2, 2],
+    
+    "batch_size"             : 8,
+    "learning_rate"          : 0.05,
+    "weight_decay"           : 5e-4,
+    "max_epoch"              : 1,
+    "early_stopping_start"   : 200,
+    "early_stopping_patience": 100
+}
