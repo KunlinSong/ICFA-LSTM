@@ -38,8 +38,37 @@ def get_bias_param(*size: int,
     return torch.nn.Parameter(mat)
 
 
-torch.nn.Linear
-
+class DimensionChanger:
+    """A dimension changer, which can convert a tensor of shape
+    
+    Attributes:
+        map_units: The number of map units.
+    """
+    def __init__(self, map_units: int) -> None:
+        """Initializes a dimension changer.
+        
+        Args:
+            map_units: The number of map units.
+        """
+        self.map_units = map_units
+    def three_to_two(self, x: torch.Tensor) -> torch.Tensor:
+        """Converts a tensor of shape (batch_size, map_units, features) 
+        to (features, batch_size * map_units).
+        
+        Args:
+            x: A tensor of shape (batch_size, map_units, features).
+        """
+        x = torch.transpose(x, 0, 2)
+        return torch.reshape(x, (x.shape[0], -1))
+    def two_to_three(self, x: torch.Tensor) -> torch.Tensor:
+        """Converts a tensor of shape (features, batch_size * map_units) 
+        to (batch_size, map_units, features).
+        
+        Args:
+            x: A tensor of shape (features, batch_size * map_units).
+        """
+        x = torch.reshape(x, (x.shape[0], self.map_units, -1))
+        return torch.transpose(x, 0, 2)
 
 class Dense(torch.nn.Module):
     """A dense layer, which is a linear layer with a bias, that can calculate 
@@ -70,6 +99,7 @@ class Dense(torch.nn.Module):
         device: The device of the dense layer.
         weight: The weight parameter of the dense layer.
         bias: The bias parameter of the dense layer.
+        dim_changer: The dimension changer.
     """
 
     def __init__(
@@ -100,6 +130,7 @@ class Dense(torch.nn.Module):
                                        **self.param_kwargs)
         self.bias = (get_bias_param(self.map_units, self.out_features, **
                                     self.param_kwargs) if bias else None)
+        self.dim_changer = DimensionChanger(map_units)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         assert (
@@ -113,12 +144,9 @@ class Dense(torch.nn.Module):
         is_batched = x.dim() == 3
         if not is_batched:
             x = torch.unsqueeze(x, 0)
-        x = torch.transpose(x, 0, 2)
-        to_shape = (self.out_features,) + x.shape[1:]
-        x = torch.reshape(x, (self.in_features, -1))
+        x = self.dim_changer.three_to_two(x)
         y = torch.matmul(self.weight, x)
-        y = torch.reshape(y, to_shape)
-        y = torch.transpose(y, 0, 2)
+        y = self.dim_changer.two_to_three(y)
         if not is_batched:
             y = torch.squeeze(y, 0)
         return y if self.bias is None else y + self.bias

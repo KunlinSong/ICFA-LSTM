@@ -1,5 +1,6 @@
 import torch
 
+from icfalstm.nn.layer.basic import DimensionChanger
 from icfalstm.types import *
 
 
@@ -99,6 +100,7 @@ class ICA(torch.nn.Module):
         assoc_mat: The association matrix.
         w_assoc: The association matrix as a parameter, of shape 
             `(map_units, map_units)`.
+        dim_changer: The dimension changer.
     """
 
     def __init__(self,
@@ -117,6 +119,7 @@ class ICA(torch.nn.Module):
         self.param_kwargs = {'dtype': dtype, 'device': device}
         self.assoc_mat = AssociationMatrix(self.map_units, **self.param_kwargs)
         self.w_assoc = torch.nn.Parameter(self.assoc_mat.mat)
+        self.dim_changer = DimensionChanger(map_units)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         assert (
@@ -130,12 +133,9 @@ class ICA(torch.nn.Module):
         is_batched = x.dim() == 3
         if not is_batched:
             x = torch.unsqueeze(x, 0)
-        x = torch.transpose(x, 0, 1)
-        to_shape = x.shape
-        x = torch.reshape(x, (self.map_units, -1))
+        x = self.dim_changer.three_to_two(x)
         y = torch.matmul(self.w_assoc, x)
-        y = torch.reshape(y, to_shape)
-        y = torch.transpose(y, 0, 1)
+        y = self.dim_changer.two_to_three(y)
         return y if is_batched else y.squeeze(0)
 
 
