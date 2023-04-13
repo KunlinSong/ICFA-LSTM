@@ -136,10 +136,11 @@ class Dense(torch.nn.Module):
         assert (
             (x.dim() in (2, 3)) and
             (x.shape[-2:] == (self.map_units, self.in_features))
-        ), f"""Dense: Expected x to be 3-D of shape (batch_size, map_units(
-            {self.map_units}), in_features({self.in_features})) or 2-D of 
-            shape (map_units({self.map_units}), in_features({self.in_features})
-            ), but received {x.dim()}-D tensor of shape {x.shape}"""
+        ), ('Dense: Expected x to be 3-D of shape (batch_size, map_units('
+            f'{self.map_units}), in_features({self.in_features})) or 2-D of '
+            f'shape (map_units({self.map_units}), in_features('
+            f'{self.in_features})), but received {x.dim()}-D tensor of shape '
+            f'{x.shape}')
 
         is_batched = x.dim() == 3
         if not is_batched:

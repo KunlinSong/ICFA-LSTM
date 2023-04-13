@@ -1,3 +1,4 @@
+import copy
 import json
 import os
 
@@ -32,6 +33,9 @@ class Reader:
 
     def __getitem__(self, key) -> Any:
         return self.options[key]
+    
+    def __setitem__(self, key, value):
+        self.options[key] = value
 
 
 class ConfigSaver(Reader):
@@ -145,3 +149,11 @@ class Config(Reader):
         """
         idx = self._get_proportion_idx(which)
         return self['train_val_test'][idx] / sum(self['train_val_test'])
+    
+    def copy(self) -> 'Config':
+        """Returns a copy of the config.
+
+        Returns:
+            Config: A copy of the config.
+        """
+        return copy.deepcopy(self)

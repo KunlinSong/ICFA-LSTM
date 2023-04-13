@@ -124,10 +124,10 @@ class ICA(torch.nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         assert (
             (x.dim() in (2, 3)) and (x.shape[-2] == self.map_units)
-        ), f"""ICA: Expected x to be 3-D of shape (batch_size, map_units(
-            {self.map_units}), num_attrs) or 2-D of shape (map_units(
-            {self.map_units}), num_attrs), but received {x.dim()}-D tensor 
-            of shape {x.shape}"""
+        ), ('ICA: Expected x to be 3-D of shape (batch_size, map_units('
+            f'{self.map_units}), num_attrs) or 2-D of shape (map_units('
+            f'{self.map_units}), num_attrs), but received {x.dim()}-D tensor '
+            f'of shape {x.shape}')
 
         self.assoc_mat.constrain_()
         is_batched = x.dim() == 3
@@ -201,20 +201,24 @@ class ICFA(torch.nn.Module):
             setattr(self, f'w_assoc_{idx}', w_assoc)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        assert ((x.dim() in (2, 3)) and (
-            x.shape[-2:] == (self.map_units, self.num_attrs)
-        )), f"""ICFA: Expected x to be 3-D of shape (batch_size, map_units(
-            {self.map_units}), num_attrs({self.num_attrs})) or 2-D of shape 
-            (map_units({self.map_units}), num_attrs({self.num_attrs})), but 
-            received {x.dim()}-D tensor of shape {x.shape}"""
-        
+        assert (
+            (x.dim() in (2, 3)) and
+            (x.shape[-2:] == (self.map_units, self.num_attrs))
+        ), ('ICFA: Expected x to be 3-D of shape (batch_size, map_units('
+            f'{self.map_units}), num_attrs({self.num_attrs})) or 2-D of shape '
+            f'(map_units({self.map_units}), num_attrs({self.num_attrs})), but '
+            f'received {x.dim()}-D tensor of shape {x.shape}')
+
         is_batched = x.dim() == 3
         if not is_batched:
             x = torch.unsqueeze(x, 0)
         x = torch.transpose(x, 0, 2)
+        result = []
         for idx in range(self.num_attrs):
             assoc_mat = getattr(self, f'assoc_mat_{idx}')
+            w_assoc = getattr(self, f'w_assoc_{idx}')
             assoc_mat.constrain_()
-            x[idx] = torch.matmul(getattr(self, f'w_assoc_{idx}'), x[idx])
-        x = torch.transpose(x, 0, 2)
-        return x if is_batched else x.squeeze(0)
+            result.append(torch.matmul(w_assoc, x[idx]).unsqueeze(0))
+        result = torch.cat(result, dim=0)
+        result= torch.transpose(result, 0, 2)
+        return result if is_batched else result.squeeze(0)

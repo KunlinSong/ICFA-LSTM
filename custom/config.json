@@ -26,7 +26,7 @@
     "batch_size"             : 8,
     "learning_rate"          : 0.05,
     "weight_decay"           : 5e-4,
-    "max_epoch"              : 1,
+    "max_epoch"              : 2,
     "early_stopping_start"   : 200,
     "early_stopping_patience": 100
 }

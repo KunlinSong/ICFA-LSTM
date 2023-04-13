@@ -140,10 +140,10 @@ class LSTMCell(torch.nn.Module):
         assert (
             (x.dim() in (2, 3)) and
             (x.shape[-2:] == (self.map_units, self.input_size))
-        ), f"""LSTMCell: Expected x to be 3-D of shape (batch_size, map_units(
-            {self.map_units}), input_size({self.input_size})) or 2-D of 
-            shape (map_units({self.map_units}), input_size({self.input_size}
-            )), but recieved {x.dim()}-D tensor of shape {x.shape}"""
+        ), ('LSTMCell: Expected x to be 3-D of shape (batch_size, map_units('
+            f'{self.map_units}), input_size({self.input_size})) or 2-D of '
+            f'shape (map_units({self.map_units}), input_size({self.input_size}'
+            f')), but recieved {x.dim()}-D tensor of shape {x.shape}')
         is_batched = x.dim() == 3
         if not is_batched:
             x = x.unsqueeze(0)
@@ -280,10 +280,10 @@ class GRUCell(torch.nn.Module):
         assert (
             (x.dim() in (2, 3)) and
             (x.shape[-2:] == (self.map_units, self.input_size))
-        ), f"""GRUCell: Expected x to be 3-D of shape (batch_size, map_units(
-            {self.map_units}), input_size({self.input_size})) or 2-D of shape 
-            (map_units({self.map_units}), input_size({self.input_size})), but 
-            recieved {x.dim()}-D tensor of shape {x.shape}"""
+        ), ('GRUCell: Expected x to be 3-D of shape (batch_size, map_units('
+            f'{self.map_units}), input_size({self.input_size})) or 2-D of shape'
+            f' (map_units({self.map_units}), input_size({self.input_size})), '
+            f'but recieved {x.dim()}-D tensor of shape {x.shape}')
         is_batched = x.dim() == 3
         if not is_batched:
             x = x.unsqueeze(0)
@@ -397,10 +397,10 @@ class RNNCell(torch.nn.Module):
         assert (
             (x.dim() in (2, 3)) and
             (x.shape[-2:] == (self.map_units, self.input_size))
-        ), f"""RNNCell: Expected x to be 3-D of shape (batch_size, map_units(
-            {self.map_units}), input_size({self.input_size})) or 2-D of shape 
-            (map_units({self.map_units}), input_size({self.input_size})), but 
-            recieved {x.dim()}-D tensor of shape {x.shape}"""
+        ), ('RNNCell: Expected x to be 3-D of shape (batch_size, map_units('
+            f'{self.map_units}), input_size({self.input_size})) or 2-D of shape '
+            f'(map_units({self.map_units}), input_size({self.input_size})), but '
+            f'recieved {x.dim()}-D tensor of shape {x.shape}')
         is_batched = x.dim() == 3
         if not is_batched:
             x = x.unsqueeze(0)

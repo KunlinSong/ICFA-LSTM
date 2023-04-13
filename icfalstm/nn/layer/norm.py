@@ -3,7 +3,7 @@ import torch
 from icfalstm.types import *
 
 
-class ArcTanNorm(nn.Module):
+class ArcTanNorm(torch.nn.Module):
     """A normalization layer that normalizes the input to the range of 
     [-1, 1] or [0, 1] using the arctan function.
     
@@ -49,7 +49,7 @@ class ArcTanNorm(nn.Module):
             norm = torch.atan(x) / torch.pi
             return norm * 2 if self.keep_zero_position else norm + 0.5
 
-class MaxMinNorm(nn.Module):
+class MaxMinNorm(torch.nn.Module):
     """A normalization layer that normalizes the input to the range of 
     [-1, 1] or [0, 1] using the max-min normalization.
 

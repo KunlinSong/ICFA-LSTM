@@ -5,15 +5,14 @@ from icfalstm.types import *
 
 
 class RNNBase(torch.nn.Module):
-    """A basic RNN model. Just processes one time step of the input.
+    """A basic RNN model.
     
     The model is composed of a normalization layer, an association layer, a RNN 
     layer, and a dense layer. The normalization layer is used to normalize the 
     input to the range of [-1, 1] or [0, 1]. The association layer is a 
     optional layer that is used to associate the input by using the 
     association matrix. The RNN layer is used to process the input. The dense 
-    layer is used to output the result. The model is just a part of other RNN 
-    models, because it just processes one time step of the input.
+    layer is used to output the result.
 
     Attributes:
         mode (str): The mode of the model.
@@ -37,7 +36,8 @@ class RNNBase(torch.nn.Module):
                  hidden_units: int,
                  out_features: int,
                  dtype: Optional[torch.dtype] = None,
-                 device: Optional[torch.device] = None) -> None:
+                 device: Optional[torch.device] = None,
+                 batch_first: bool=True) -> None:
         """initializes a basic RNN model.
         
         Args:
@@ -57,10 +57,12 @@ class RNNBase(torch.nn.Module):
         self.out_features = out_features
         self.dtype = dtype
         self.device = device
+        self.batch_first = batch_first
+        self.state = None
         self._init_nn()
 
     def _get_mode(self):
-        return self.mode.split('-') if '-' in self.mode else None, self.mode
+        return (self.mode.split('-') if '-' in self.mode else (None, self.mode))
 
     def _init_nn(self):
         self.norm = mylayer.ArcTanNorm()
@@ -76,11 +78,11 @@ class RNNBase(torch.nn.Module):
         elif assoc_mode == 'ICFA':
             self.assoc = mylayer.ICFA(num_attrs=self.in_features,
                                       **basic_kwargs)
-        if assoc_mode is None:
+        elif assoc_mode is None:
             self.assoc = None
         else:
-            raise ValueError(f"""RNNBase: Invalid mode: {self.mode}. The assoc 
-                              mode need to be in [None, 'ICA', 'ICFA']""")
+            raise ValueError(f'RNNBase: Invalid mode: {self.mode}. The assoc '
+                             'mode need to be in [None, "ICA", "ICFA"]')
         self.rnn = getattr(mylayer,
                            f'{rnn_mode}Cell')(input_size=self.in_features,
                                               hidden_size=self.hidden_units,
@@ -89,12 +91,20 @@ class RNNBase(torch.nn.Module):
                                    out_features=self.out_features,
                                    **basic_kwargs)
 
-    def forward(self, x: torch.Tensor,
-                state: Optional[Sequence[torch.Tensor]]) -> torch.Tensor:
-        y = self.norm(x)
-        if self.assoc is not None:
-            y = self.assoc(y)
-        state = self.rnn(y, state)
-        y = state[0]
-        y = self.dense(y)
-        return y, state
+    def forward(self, x: torch.Tensor, clear_state: bool=True) -> torch.Tensor:
+        x = x.to(self.device)
+        x = torch.transpose(x, 0, 1) if self.batch_first else x
+        result = []
+        input_times_num = len(x)
+        for time_idx in range(input_times_num):
+            y = self.norm(x[time_idx])
+            if self.assoc is not None:
+                y = self.assoc(y)
+            self.state = self.rnn(y, self.state)
+            y = self.state[0]
+            y = self.dense(y)
+            y = torch.unsqueeze(y, 0)
+            result.append(y)
+        self.state = None if clear_state else self.state
+        result = torch.cat(result, 0)
+        return torch.transpose(result, 0, 1) if self.batch_first else result
