@@ -102,6 +102,7 @@ class RNNBase(torch.nn.Module):
             self.state = self.rnn(y, self.state)
             y = self.state[0]
             y = self.dense(y)
+            y = self.norm(y, inverse=True)
             y = torch.unsqueeze(y, 0)
             result.append(y)
         self.state = None if clear_state else self.state

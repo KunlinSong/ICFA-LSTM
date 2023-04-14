@@ -116,7 +116,7 @@ class Trainer:
             model_state_dict = self.logger.get_state_dict(
                 'latest', self.device)
             self.model.load_state_dict(model_state_dict)
-        self.loss = torch.nn.L1Loss()
+        self.loss = torch.nn.SmoothL1Loss()
         self.optimizer = torch.optim.Adam(
             self.model.parameters(),
             lr=self.config['learning_rate'],

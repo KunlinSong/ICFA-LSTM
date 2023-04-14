@@ -1,6 +1,5 @@
 import torch
 
-from icfalstm.nn.layer.basic import DimensionChanger
 from icfalstm.types import *
 
 
@@ -59,9 +58,10 @@ class AssociationMatrix:
         """Constrains the association matrix. Sets values outside the range 
         [min_val, max_val] to random values within the range. Sets the 
         diagonal to self_assoc_weight."""
-        mask = (self.mat < self.min_val) | (self.mat > self.max_val)
-        self.mat[mask] = torch.rand(mask.sum(), **self.param_kwargs) * (
-            self.max_val - self.min_val) + self.min_val
+        # mask = (self.mat < self.min_val) | (self.mat > self.max_val)
+        # self.mat[mask] = torch.rand(mask.sum(), **self.param_kwargs) * (
+        #     self.max_val - self.min_val) + self.min_val
+        self.mat.clamp_(self.min_val, self.max_val)
         return self.mat.fill_diagonal_(self.self_assoc_weight)
 
     def __repr__(self) -> str:

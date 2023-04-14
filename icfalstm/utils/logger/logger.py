@@ -1,20 +1,21 @@
+import math
 import os
 import pickle
 from collections import defaultdict
 
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+import seaborn as sns
 import torch
 import torcheval.metrics as metrics
 import torch.utils.tensorboard as tensorboard
+from scipy.stats import gaussian_kde
 
 from icfalstm.types import *
 from icfalstm.utils.directory.directory import Directory
 from icfalstm.utils.reader.reader import Config
 
-def default_to_regular(d):
-    if isinstance(d, defaultdict):
-        d = {k: default_to_regular(v) for k, v in d.items()}
-    return d
 
 class ModelLogger:
     """The ModelLogger class is used to log the model.
@@ -24,7 +25,7 @@ class ModelLogger:
         best_model (str): The path to the best model.    
     """
 
-    def __init__(self, dirname: str) -> None:
+    def __init__(self, dirname: str, config: Config) -> None:
         """Initializes the ModelLogger object.
 
         Args:
@@ -33,6 +34,10 @@ class ModelLogger:
         directory = Directory(dirname)
         self.latest_model = directory.join('latest_model.pth')
         self.best_model = directory.join('best_model.pth')
+        self.assoc_plot = directory.join('assoc_plot')
+        self.config = config
+        if not os.path.exists(self.assoc_plot):
+            os.makedirs(self.assoc_plot)
 
     def get_state_dict(self, which: Literal['best', 'latest'],
                        device: torch.device) -> Any:
@@ -64,6 +69,40 @@ class ModelLogger:
             which (['best', 'latest']): Which model to save.
         """
         torch.save(state_dict, getattr(self, f'{which}_model'))
+
+    def plot_assoc_mat(self):
+        state_dict = torch.load(self.best_model)
+        for key in state_dict:
+            if key.startswith('assoc'):
+                elems = key.split('_')
+                if (not isinstance(elems, str)) and (len(elems) > 2):
+                    idx = int(elems[-1])
+                    attr = self.config['attributes'][idx]
+                    self._plot_attr_heatmap(state_dict[key], attr)
+                else:
+                    self._plot_attr_heatmap(state_dict[key])
+
+    def _plot_attr_heatmap(self,
+                           assoc_mat: torch.Tensor,
+                           attr: Optional[str] = None):
+        assoc_mat = assoc_mat.detach().numpy()
+        df = pd.DataFrame(assoc_mat,
+                          columns=self.config['cities'],
+                          index=self.config['cities'])
+        fig, ax = plt.subplots()
+        sns.heatmap(data=df,
+                    ax=ax,
+                    vmin=-1,
+                    vmax=1,
+                    xticklabels=True,
+                    yticklabels=True,
+                    annot=False)
+        if attr is not None:
+            ax.set_title(f'Association Matrix for {attr}')
+            fig.savefig(os.path.join(self.assoc_plot, f'assoc_mat_{attr}.png'))
+        else:
+            ax.set_title('Association Matrix')
+            fig.savefig(os.path.join(self.assoc_plot, 'assoc_mat.png'))
 
 
 class LossLogger:
@@ -155,6 +194,22 @@ class LossLogger:
                     true_vals = torch.tensor(true_vals)
                     yield attr, city, predicted_vals, true_vals
 
+    def _default_to_regular(self, default_dict: defaultdict):
+        """Converts a defaultdict to a regular dict.
+        
+        Args:
+            default_dict (defaultdict): The defaultdict to convert.
+        
+        Returns:
+            dict: The regular dict.
+        """
+        if isinstance(default_dict, defaultdict):
+            regular_dict = {
+                k: self._default_to_regular(v)
+                for k, v in default_dict.items()
+            }
+        return regular_dict
+
     def add_test_info(self) -> None:
         ind_dict = defaultdict(lambda: defaultdict(lambda: dict))
         for attr, city, predicted_vals, true_vals in self.predicted_true_loader(
@@ -171,9 +226,9 @@ class LossLogger:
                 'r2_score': r2_score.item(),
                 'mape': mape
             }
-            
+
         with open(self.test_info, 'wb') as f:
-            pickle.dump(default_to_regular(ind_dict), f)
+            pickle.dump(self._default_to_regular(ind_dict), f)
 
     def save_predicted_true(self, predicted_values: torch.Tensor,
                             true_values: torch.Tensor) -> None:
@@ -230,12 +285,44 @@ class TensorboardLogger:
 
     def add_predicted_true(self, predicted_values: torch.Tensor,
                            true_values: torch.Tensor, city: str, attr: str):
-        for idx in range(len(predicted_values)):
+        for idx in range(len(true_values)):
             self.writer.add_scalars(
                 f'Predicted vs True Values [{city}, {attr}]', {
                     'Predicted Values': predicted_values[idx],
                     'True Values': true_values[idx]
                 }, idx)
+        self._plot_scatter(predicted_values, true_values, city, attr)
+
+    def _plot_scatter(self, predicted_values: torch.Tensor,
+                      true_values: torch.Tensor, city: str, attr: str):
+        predicted_values = predicted_values.detach().numpy()
+        true_values = true_values.detach().numpy()
+
+        true_predicted = np.vstack([true_values, predicted_values])
+        z = gaussian_kde(true_predicted)(true_predicted)
+        idx = z.argsort()
+
+        true_values, predicted_values, z = true_values[idx], predicted_values[
+            idx], z[idx]
+
+        fig, ax = plt.subplots()
+        ax.scatter(true_values, predicted_values, s=10, c=z)
+
+        true_max = math.ceil(np.max(true_values))
+        predicted_max = math.ceil(np.max(predicted_values))
+
+        ax.set_xlim([0, math.ceil(true_max * 1.1)])
+        ax.set_ylim([0, math.ceil(predicted_max * 1.1)])
+
+        max_val = max(true_max, predicted_max)
+        ax.plot([0, int(max_val * 1.1)], [0, int(max_val * 1.1)], color='red')
+
+        ax.set_title(f'Predicted vs True Values [{city}, {attr}]')
+        ax.set_xlabel('True Values')
+        ax.set_ylabel('Predicted Values')
+
+        self.writer.add_figure(f'Predicted vs True Values [{city}, {attr}]',
+                               fig)
 
 
 class Logger:
@@ -249,7 +336,7 @@ class Logger:
         tensorboard_dir = root_dir.join('tensorboard_logs')
         self._mk_not_exists(model_dir)
         self._mk_not_exists(logs_dir)
-        self.model_logger = ModelLogger(model_dir)
+        self.model_logger = ModelLogger(model_dir, config)
         self.loss_logger = LossLogger(logs_dir, config)
         self.tensorboard_logger = TensorboardLogger(tensorboard_dir, config)
         self.best_epoch, self.best_loss = self._get_history_best()
@@ -366,3 +453,6 @@ class Logger:
 
     def add_test_info(self):
         self.loss_logger.add_test_info()
+
+    def plot_state_dict(self):
+        self.model_logger.plot_assoc_mat()
