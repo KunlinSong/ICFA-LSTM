@@ -7,11 +7,14 @@ import torch
 import torcheval.metrics as metrics
 import torch.utils.tensorboard as tensorboard
 
-from icfalstm.nn.wrapper.rnn import RNNWrapper
 from icfalstm.types import *
 from icfalstm.utils.directory.directory import Directory
 from icfalstm.utils.reader.reader import Config
 
+def default_to_regular(d):
+    if isinstance(d, defaultdict):
+        d = {k: default_to_regular(v) for k, v in d.items()}
+    return d
 
 class ModelLogger:
     """The ModelLogger class is used to log the model.
@@ -153,7 +156,7 @@ class LossLogger:
                     yield attr, city, predicted_vals, true_vals
 
     def add_test_info(self) -> None:
-        ind_dict = defaultdict(defaultdict(dict))
+        ind_dict = defaultdict(lambda: defaultdict(lambda: dict))
         for attr, city, predicted_vals, true_vals in self.predicted_true_loader(
         ):
             mae = torch.nn.functional.l1_loss(predicted_vals, true_vals)
@@ -163,13 +166,14 @@ class LossLogger:
             mape = self.mean_absolute_percentage_error(predicted_vals,
                                                        true_vals)
             ind_dict[attr][city] = {
-                'mae': mae,
-                'mse': mse,
-                'r2_score': r2_score,
+                'mae': mae.item(),
+                'mse': mse.item(),
+                'r2_score': r2_score.item(),
                 'mape': mape
             }
+            
         with open(self.test_info, 'wb') as f:
-            pickle.dump(ind_dict, f)
+            pickle.dump(default_to_regular(ind_dict), f)
 
     def save_predicted_true(self, predicted_values: torch.Tensor,
                             true_values: torch.Tensor) -> None:
@@ -226,14 +230,16 @@ class TensorboardLogger:
 
     def add_predicted_true(self, predicted_values: torch.Tensor,
                            true_values: torch.Tensor, city: str, attr: str):
-        self.writer.add_scalar(f'Predicted vs True Values [{city}, {attr}]', {
-            'Predicted Values': predicted_values,
-            'True Values': true_values
-        })
-
+        for idx in range(len(predicted_values)):
+            self.writer.add_scalars(
+                f'Predicted vs True Values [{city}, {attr}]', {
+                    'Predicted Values': predicted_values[idx],
+                    'True Values': true_values[idx]
+                }, idx)
 
 
 class Logger:
+
     def __init__(self, dirname: str, config: Config) -> None:
         self.dirname = dirname
         self.config = config
@@ -315,7 +321,7 @@ class Logger:
             return True
         else:
             return False
-    
+
     def add_graph(self, model: torch.nn.Module) -> None:
         """Adds the model graph to tensorboard.
 
@@ -323,7 +329,7 @@ class Logger:
             model (torch.nn.Module): The model.
         """
         self.tensorboard_logger.add_graph(model)
-    
+
     def early_stopping(self, epoch: int) -> bool:
         """Checks if the early stopping condition is met.
 
@@ -336,7 +342,7 @@ class Logger:
         return ((epoch > self.config['early_stopping_start']) and
                 ((epoch - self.best_epoch) >
                  self.config['early_stopping_patience']))
-    
+
     def add_loss(self, which: Literal['train', 'val'], loss: float,
                  epoch: int) -> None:
         """Adds the loss to the tensorboard and the loss logger.
@@ -349,12 +355,14 @@ class Logger:
         """
         self.loss_logger.add_loss(which, loss, epoch)
         self.tensorboard_logger.add_loss(which, loss, epoch)
-    
+
     def save_predicted_true(self, predicted_values: torch.Tensor,
                             true_values: torch.Tensor):
         self.loss_logger.save_predicted_true(predicted_values, true_values)
-        for attr, city, predicted_values, true_values in self.loss_logger.predicted_true_loader():
-            self.tensorboard_logger.add_predicted_true(predicted_values, true_values, city, attr)
-    
+        for attr, city, predicted_values, true_values in self.loss_logger.predicted_true_loader(
+        ):
+            self.tensorboard_logger.add_predicted_true(predicted_values,
+                                                       true_values, city, attr)
+
     def add_test_info(self):
         self.loss_logger.add_test_info()

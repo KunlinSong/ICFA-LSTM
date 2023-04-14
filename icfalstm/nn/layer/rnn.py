@@ -153,8 +153,8 @@ class LSTMCell(torch.nn.Module):
             c = torch.zeros(x.shape[0], self.map_units, self.hidden_size,
                             **self.param_kwargs)
         else:
-            h = torch.squeeze(state[0], 0) if is_batched else state[0]
-            c = torch.squeeze(state[1], 0) if is_batched else state[1]
+            h = state[0] if is_batched else torch.unsqueeze(state[0], 0)
+            c = state[1] if is_batched else torch.unsqueeze(state[1], 0)
         x = self.dim_changer.three_to_two(x)
         h = self.dim_changer.three_to_two(h)
         i = torch.sigmoid(
@@ -291,7 +291,7 @@ class GRUCell(torch.nn.Module):
             h = torch.zeros(x.shape[0], self.map_units, self.hidden_size,
                             **self.param_kwargs)
         else:
-            h = torch.squeeze(state[0], 0) if is_batched else state[0]
+            h = state[0] if is_batched else torch.unsqueeze(state[0], 0)
         x = self.dim_changer.three_to_two(x)
         h = self.dim_changer.three_to_two(h)
         r = torch.sigmoid(
@@ -307,6 +307,7 @@ class GRUCell(torch.nn.Module):
                 torch.matmul(self.w_n, x) +
                 torch.matmul(self.u_n,
                              self.dim_changer.three_to_two(r) * h)) + self.b_n)
+        h = self.dim_changer.two_to_three(h)
         h = (1 - z) * n + z * h
         return (h,) if is_batched else (h.squeeze(0),)
 
@@ -408,7 +409,7 @@ class RNNCell(torch.nn.Module):
             h = torch.zeros(x.shape[0], self.map_units, self.hidden_size,
                             **self.param_kwargs)
         else:
-            h = torch.squeeze(state[0], 0) if is_batched else state[0]
+            h = state[0] if is_batched else torch.unsqueeze(state[0], 0)
         x = self.dim_changer.three_to_two(x)
         h = self.dim_changer.three_to_two(h)
 

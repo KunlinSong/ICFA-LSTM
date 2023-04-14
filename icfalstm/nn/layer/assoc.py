@@ -119,7 +119,6 @@ class ICA(torch.nn.Module):
         self.param_kwargs = {'dtype': dtype, 'device': device}
         self.assoc_mat = AssociationMatrix(self.map_units, **self.param_kwargs)
         self.w_assoc = torch.nn.Parameter(self.assoc_mat.mat)
-        self.dim_changer = DimensionChanger(map_units)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         assert (
@@ -133,9 +132,12 @@ class ICA(torch.nn.Module):
         is_batched = x.dim() == 3
         if not is_batched:
             x = torch.unsqueeze(x, 0)
-        x = self.dim_changer.three_to_two(x)
+        batch_size = x.shape[0]
+        y = torch.transpose(x, 0, 1)
+        y = torch.reshape(y, (self.map_units, -1))
         y = torch.matmul(self.w_assoc, x)
-        y = self.dim_changer.two_to_three(y)
+        y = torch.reshape(y, (self.map_units, batch_size, -1))
+        y = torch.transpose(y, 0, 1)
         return y if is_batched else y.squeeze(0)
 
 

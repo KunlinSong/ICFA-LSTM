@@ -73,8 +73,7 @@ class RNNBase(torch.nn.Module):
             'device': self.device
         }
         if assoc_mode == 'ICA':
-            self.assoc = mylayer.ICA(num_attrs=self.in_features,
-                                     **basic_kwargs)
+            self.assoc = mylayer.ICA(**basic_kwargs)
         elif assoc_mode == 'ICFA':
             self.assoc = mylayer.ICFA(num_attrs=self.in_features,
                                       **basic_kwargs)

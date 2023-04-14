@@ -188,7 +188,7 @@ if __name__ == '__main__':
         trainer.logger.add_loss('val', trainer.val_loss_recorder.get_epoch_loss(), epoch)
         trainer.logger.save_state_dict(trainer.model.state_dict(), 'latest')
         if trainer.logger.is_best(epoch,
-                                  trainer.loss_recorder.get_epoch_loss()):
+                                  trainer.val_loss_recorder.get_epoch_loss()):
             trainer.logger.save_state_dict(trainer.model.state_dict(), 'best')
     
     myutils.print_separator()
@@ -207,6 +207,7 @@ if __name__ == '__main__':
             predicted_values.append(torch.transpose(outputs, 0, 1)[-1])
         print(f'\rTest finished: {i}/{test_len}', end='')
     true_values = torch.cat(true_values, dim=0)
+    predicted_values = torch.cat(predicted_values, dim=0)
     print('\nTest all finished.')
     print('\nAdd info to logs ...')
     trainer.logger.save_predicted_true(predicted_values, true_values)
