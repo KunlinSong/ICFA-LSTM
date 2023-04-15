@@ -85,7 +85,7 @@ class ModelLogger:
     def _plot_attr_heatmap(self,
                            assoc_mat: torch.Tensor,
                            attr: Optional[str] = None):
-        assoc_mat = assoc_mat.detach().numpy()
+        assoc_mat = assoc_mat.to('cpu').detach().numpy()
         df = pd.DataFrame(assoc_mat,
                           columns=self.config['cities'],
                           index=self.config['cities'])
@@ -208,6 +208,8 @@ class LossLogger:
                 k: self._default_to_regular(v)
                 for k, v in default_dict.items()
             }
+        else:
+            regular_dict = default_dict
         return regular_dict
 
     def add_test_info(self) -> None:
@@ -233,8 +235,8 @@ class LossLogger:
     def save_predicted_true(self, predicted_values: torch.Tensor,
                             true_values: torch.Tensor) -> None:
         values = [
-            torch.unsqueeze(predicted_values, 0),
-            torch.unsqueeze(true_values, 0)
+            torch.unsqueeze(predicted_values, 0).to('cpu'),
+            torch.unsqueeze(true_values, 0).to('cpu')
         ]
         values = torch.cat(values, dim=0)
         assert values.dim() == 4
@@ -454,5 +456,5 @@ class Logger:
     def add_test_info(self):
         self.loss_logger.add_test_info()
 
-    def plot_state_dict(self):
+    def plot_assoc_mat(self):
         self.model_logger.plot_assoc_mat()

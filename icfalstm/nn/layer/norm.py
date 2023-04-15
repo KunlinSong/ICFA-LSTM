@@ -44,7 +44,7 @@ class ArcTanNorm(torch.nn.Module):
     def forward(self, x: torch.Tensor, inverse: bool = False) -> torch.Tensor:
         if inverse:
             inverse_norm = x / 2 if self.keep_zero_position else x - 0.5
-            return torch.tan(inverse_norm * math.pi)
+            return torch.tan(inverse_norm * torch.pi)
         else:
             norm = torch.atan(x) / torch.pi
             return norm * 2 if self.keep_zero_position else norm + 0.5

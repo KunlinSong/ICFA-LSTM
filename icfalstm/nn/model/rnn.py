@@ -37,7 +37,7 @@ class RNNBase(torch.nn.Module):
                  out_features: int,
                  dtype: Optional[torch.dtype] = None,
                  device: Optional[torch.device] = None,
-                 batch_first: bool=True) -> None:
+                 batch_first: bool = True) -> None:
         """initializes a basic RNN model.
         
         Args:
@@ -62,7 +62,8 @@ class RNNBase(torch.nn.Module):
         self._init_nn()
 
     def _get_mode(self):
-        return (self.mode.split('-') if '-' in self.mode else (None, self.mode))
+        return (self.mode.split('-') if '-' in self.mode else
+                (None, self.mode))
 
     def _init_nn(self):
         self.norm = mylayer.ArcTanNorm()
@@ -90,7 +91,9 @@ class RNNBase(torch.nn.Module):
                                    out_features=self.out_features,
                                    **basic_kwargs)
 
-    def forward(self, x: torch.Tensor, clear_state: bool=True) -> torch.Tensor:
+    def forward(self,
+                x: torch.Tensor,
+                clear_state: bool = True) -> torch.Tensor:
         x = x.to(self.device)
         x = torch.transpose(x, 0, 1) if self.batch_first else x
         result = []
@@ -102,7 +105,6 @@ class RNNBase(torch.nn.Module):
             self.state = self.rnn(y, self.state)
             y = self.state[0]
             y = self.dense(y)
-            y = self.norm(y, inverse=True)
             y = torch.unsqueeze(y, 0)
             result.append(y)
         self.state = None if clear_state else self.state

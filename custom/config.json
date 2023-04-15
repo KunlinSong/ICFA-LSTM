@@ -24,9 +24,9 @@
     "train_val_test"         : [6, 2, 2],
     
     "batch_size"             : 64,
-    "learning_rate"          : 0.05,
+    "learning_rate"          : 0.01,
     "weight_decay"           : 5e-4,
-    "max_epoch"              : 50,
-    "early_stopping_start"   : 10,
-    "early_stopping_patience": 5
+    "max_epoch"              : 10000,
+    "early_stopping_start"   : 10000,
+    "early_stopping_patience": 10000
 }
